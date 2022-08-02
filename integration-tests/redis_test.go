@@ -3,13 +3,14 @@ package integration_tests
 import (
 	"strings"
 	"testing"
+
+	"github.com/alicebob/miniredis"
+
 	"vecna"
 	backends "vecna/backends/redis"
 	brokers "vecna/brokers/redis"
 	"vecna/config"
 	locks "vecna/locks/redis"
-
-	"github.com/alicebob/miniredis"
 )
 
 var redisServer *miniredis.Miniredis
