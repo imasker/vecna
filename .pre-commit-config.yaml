@@ -1,0 +1,33 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages:
+  - commit
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.1.0
+  hooks:
+    - description: Trims trailing whitespace
+      id: trailing-whitespace
+    - description: Makes sure files end in a newline and only a newline
+      id: end-of-file-fixer
+    - description: Attempts to load all yaml files to verify syntax
+      id: check-yaml
+    - description: Attempts to load all json files to verify syntax
+      id: check-json
+    - description: Prevent giant files from being committed.
+      id: check-added-large-files
+- repo: https://github.com/dnephin/pre-commit-golang
+  rev: v0.5.0
+  hooks:
+    - id: go-fmt
+#    - id: go-vet
+#    - id: go-lint
+    - id: go-imports
+#    - description: Gocyclo calculates cyclomatic complexities of functions in Go source code.
+#      id: go-cyclo
+#      args: [-over=20]
+    - id: golangci-lint
+#    - id: go-critic
+    - id: go-unit-tests
+#    - id: go-build
+    - id: go-mod-tidy
