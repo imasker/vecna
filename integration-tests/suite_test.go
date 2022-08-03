@@ -26,11 +26,19 @@ func (a ascendingInt64s) Less(i, j int) bool {
 	return a[i] < a[j]
 }
 
-func testAll(server *vecna.Server, t *testing.T) {
-	testSendTask(server, t)
+func testAll(t *testing.T, server *vecna.Server) {
+	testSendTask(t, server)
+	testSendGroup(t, server, 0) // with unlimited concurrency
+	testSendGroup(t, server, 2) // with limited concurrency (2 parallel tasks at the most)
+	testSendChord(t, server)
+	testSendChain(t, server)
+	testReturnJustError(t, server)
+	testReturnMultipleValues(t, server)
+	testPanic(t, server)
+	testDelay(t, server)
 }
 
-func testSendTask(server *vecna.Server, t *testing.T) {
+func testSendTask(t *testing.T, server *vecna.Server) {
 	addTask := newAddTask(1, 1)
 
 	asyncResult, err := server.SendTask(addTask)
@@ -71,7 +79,7 @@ func testSendTask(server *vecna.Server, t *testing.T) {
 	}
 }
 
-func testSendGroup(server *vecna.Server, t *testing.T, sendConcurrency int) {
+func testSendGroup(t *testing.T, server *vecna.Server, sendConcurrency int) {
 	t1, t2, t3 := newAddTask(1, 1), newAddTask(2, 2), newAddTask(5, 6)
 
 	group := tasks.NewGroup(t1, t2, t3)
@@ -109,7 +117,7 @@ func testSendGroup(server *vecna.Server, t *testing.T, sendConcurrency int) {
 	}
 }
 
-func testSendChain(server *vecna.Server, t *testing.T) {
+func testSendChain(t *testing.T, server *vecna.Server) {
 	t1, t2, t3 := newAddTask(2, 2), newAddTask(5, 6), newMultipleTask(4)
 
 	chain := tasks.NewChain(t1, t2, t3)
@@ -133,7 +141,7 @@ func testSendChain(server *vecna.Server, t *testing.T) {
 	}
 }
 
-func testSendChord(server *vecna.Server, t *testing.T) {
+func testSendChord(t *testing.T, server *vecna.Server) {
 	t1, t2, t3, t4 := newAddTask(1, 1), newAddTask(2, 2), newAddTask(5, 6), newMultipleTask()
 
 	group := tasks.NewGroup(t1, t2, t3)
@@ -159,7 +167,7 @@ func testSendChord(server *vecna.Server, t *testing.T) {
 	}
 }
 
-func testReturnJustError(server *vecna.Server, t *testing.T) {
+func testReturnJustError(t *testing.T, server *vecna.Server) {
 	// Fails, returns error as the only value
 	task := newErrorTask("Test error", true)
 	asyncResult, err := server.SendTask(task)
@@ -187,7 +195,7 @@ func testReturnJustError(server *vecna.Server, t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func testReturnMultipleValues(server *vecna.Server, t *testing.T) {
+func testReturnMultipleValues(t *testing.T, server *vecna.Server) {
 	// Successful task with multiple return values
 	task := newMultipleReturnTask("foo", "bar", false)
 
@@ -225,10 +233,10 @@ func testReturnMultipleValues(server *vecna.Server, t *testing.T) {
 	if len(results) != 0 {
 		t.Errorf("Number of results returned = %d. Wanted %d", len(results), 0)
 	}
-	assert.NoError(t, err)
+	assert.Error(t, err)
 }
 
-func testPanic(server *vecna.Server, t *testing.T) {
+func testPanic(t *testing.T, server *vecna.Server) {
 	task := &tasks.Signature{Name: "panic"}
 	asyncResult, err := server.SendTask(task)
 	if err != nil {
@@ -239,10 +247,10 @@ func testPanic(server *vecna.Server, t *testing.T) {
 	if len(results) != 0 {
 		t.Errorf("Number of results returned = %d. Wanted %d", len(results), 0)
 	}
-	assert.NoError(t, err)
+	assert.Equal(t, "oops", err.Error())
 }
 
-func testDelay(server *vecna.Server, t *testing.T) {
+func testDelay(t *testing.T, server *vecna.Server) {
 	now := time.Now().UTC()
 	eta := now.Add(100 * time.Millisecond)
 	task := newDelayTask(eta)

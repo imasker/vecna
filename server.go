@@ -234,7 +234,7 @@ func (s *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, s
 	errorsChan := make(chan error, len(group.Tasks)*2)
 
 	// Init group
-	s.backend.InitGroup(group.GroupID, group.GetIDs())
+	_ = s.backend.InitGroup(group.GroupID, group.GetIDs())
 
 	// Init the tasks Pending state first
 	for _, signature := range group.Tasks {

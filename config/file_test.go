@@ -8,8 +8,6 @@ import (
 )
 
 func TestNewFromYaml(t *testing.T) {
-	t.Parallel()
-
 	cnf, err := config.NewFromYaml("test.yml", false)
 	if err != nil {
 		t.Fatal(err)

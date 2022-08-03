@@ -17,8 +17,6 @@ import (
 	"vecna/log"
 	"vecna/tasks"
 
-	"github.com/go-redsync/redsync/v4"
-
 	"github.com/go-redis/redis/v8"
 )
 
@@ -31,8 +29,6 @@ type Broker struct {
 	consumingWG          sync.WaitGroup // wait group to make sure whole consumption completes
 	processingWG         sync.WaitGroup // use wait group to make sure task processing completes
 	delayedWG            sync.WaitGroup
-	redsync              *redsync.Redsync
-	redisOnce            sync.Once
 	redisDelayedTasksKey string
 }
 
@@ -105,7 +101,6 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 	// If the message is valid and can be unmarshaled into a proper structure
 	// we send it to the deliveries channel
 	go func() {
-
 		log.Logger.Info("[*] Waiting for messages. To exit press CTRL+C")
 
 		for {
@@ -185,7 +180,7 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 
 	msg, err := json.Marshal(signature)
 	if err != nil {
-		fmt.Errorf("json marshal error: %s", err)
+		return fmt.Errorf("json marshal error: %s", err)
 	}
 
 	// Check the ETA signature field, if it is set and it is in the future,
@@ -400,7 +395,7 @@ func (b *Broker) nextDelayedTask(key string) (result []byte, err error) {
 		}
 	}
 
-	return
+	return result, err
 }
 
 func getQueue(config *config.Config, taskProcessor iface.TaskProcessor) string {

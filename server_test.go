@@ -34,7 +34,7 @@ func teardown() {
 	redisServer.Close()
 }
 
-func getTestServer(t *testing.T) *vecna.Server {
+func getTestServer() *vecna.Server {
 	cnf := new(config.Config)
 	cnf.Redis = new(config.RedisConfig)
 	backend := backends.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
@@ -47,7 +47,7 @@ func TestServer_RegisterTasks(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 	err := server.RegisterTasks(map[string]interface{}{
 		"test_task": func() error {
 			return nil
@@ -63,7 +63,7 @@ func TestServer_RegisterTask(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 	err := server.RegisterTask("test_task", func() error { return nil })
 	assert.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestServer_GetRegisteredTask(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 	_, err := server.GetRegisteredTask("test_task")
 	assert.Error(t, err, "test_task is registered but it should not be")
 }
@@ -84,7 +84,7 @@ func TestServer_GetRegisteredTaskNames(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 	taskName := "test_task"
 	err := server.RegisterTask(taskName, func() error { return nil })
 	assert.NoError(t, err)
@@ -98,7 +98,7 @@ func TestServer_NewWorker(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 
 	server.NewWorker("test_worker", 1)
 	assert.NoError(t, nil)
@@ -108,7 +108,7 @@ func TestServer_NewCustomQueueWorker(t *testing.T) {
 	setup()
 	defer teardown()
 
-	server := getTestServer(t)
+	server := getTestServer()
 	server.NewCustomQueueWorker("test_customqueueworker", 1, "test_queue")
 	assert.NoError(t, nil)
 }

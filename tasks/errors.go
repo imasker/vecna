@@ -7,8 +7,8 @@ import (
 
 // ErrRetryTaskLater ...
 type ErrRetryTaskLater struct {
-	name, msg string
-	retryIn   time.Duration
+	msg     string
+	retryIn time.Duration
 }
 
 // RetryIn returns time.Duration from now when task should be retried

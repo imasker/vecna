@@ -61,5 +61,5 @@ func TestGoRedis(t *testing.T) {
 	worker := server.NewWorker("test_worker", 0)
 	defer worker.Quit()
 	go worker.Launch()
-	testAll(server, t)
+	testAll(t, server)
 }

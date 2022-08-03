@@ -29,5 +29,4 @@ func TestValidateTask(t *testing.T) {
 
 	err = tasks.ValidateTask(validTask)
 	assert.NoError(t, err)
-
 }

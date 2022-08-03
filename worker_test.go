@@ -12,7 +12,7 @@ func TestRedactURL(t *testing.T) {
 
 	broker := "redis://:password@localhost:6379/0"
 	redactedURL := vecna.RedactURL(broker)
-	assert.Equal(t, "redis://localhost:5672", redactedURL)
+	assert.Equal(t, "redis://localhost:6379", redactedURL)
 }
 
 func TestWorker_PreConsumeHandler(t *testing.T) {

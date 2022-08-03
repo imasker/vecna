@@ -193,7 +193,6 @@ func reflectValues(valueType string, value interface{}) (reflect.Value, error) {
 
 	// Unsigned integers
 	if strings.HasPrefix(theType.String(), "[]uint") || theType.String() == "[]byte" {
-
 		// Decode the base64 string if the value type is []uint8 or it's alias []byte
 		// See: https://golang.org/pkg/encoding/json/#Marshal
 		// > Array and slice values encode as JSON arrays, except that []byte encodes as a base64-encoded string

@@ -143,7 +143,7 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 	// If this failed, it means the task is malformed, probably has invalid
 	// signature, go directly to task failed without checking whether to retry
 	if err != nil {
-		worker.taskFailed(signature, err)
+		_ = worker.taskFailed(signature, err)
 		return err
 	}
 
@@ -253,7 +253,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 
 	// Trigger success callbacks
 	for _, successTask := range signature.OnSuccess {
-		if signature.Immutable == false {
+		if !signature.Immutable {
 			// Pass results of the task to success callbacks
 			for _, taskResult := range taskResults {
 				successTask.Args = append(successTask.Args, tasks.Arg{
@@ -263,7 +263,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 			}
 		}
 
-		worker.server.SendTask(successTask)
+		_, _ = worker.server.SendTask(successTask)
 	}
 
 	// If the task was not part of a group, just return
@@ -321,7 +321,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 			return nil
 		}
 
-		if signature.ChordCallback.Immutable == false {
+		if !signature.ChordCallback.Immutable {
 			// Pass results of the task to the chord callback
 			for _, taskResult := range taskState.Results {
 				signature.ChordCallback.Args = append(signature.ChordCallback.Args, tasks.Arg{
@@ -362,7 +362,7 @@ func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) erro
 			Value: taskErr.Error(),
 		}}, errorTask.Args...)
 		errorTask.Args = args
-		worker.server.SendTask(errorTask)
+		_, _ = worker.server.SendTask(errorTask)
 	}
 
 	return nil

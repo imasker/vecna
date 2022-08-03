@@ -16,8 +16,6 @@ linters-settings:
   nolintlint:
     require-explanation: true
     require-specific: true
-  typecheck:
-
 
 linters:
   disable-all: true
@@ -27,7 +25,7 @@ linters:
     - depguard
     - dogsled
     #    - dupl
-    - errcheck
+#    - errcheck
     - exportloopref
     #    - exhaustive
     - goconst
@@ -49,7 +47,7 @@ linters:
     - staticcheck
     - structcheck
     #    - stylecheck
-    - thelper
+#    - thelper
     - tparallel
     #    - typecheck
     - unconvert

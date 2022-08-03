@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"sync"
 	"time"
 	"vecna/backends/iface"
 	"vecna/common"
@@ -21,14 +20,8 @@ import (
 // Backend represents a Redis result backend with go-redis
 type Backend struct {
 	common.Backend
-	client   redis.UniversalClient
-	host     string
-	password string
-	db       int
-	// If set, path to a socket file overrides hostname
-	socketPath string
-	redsync    *redsync.Redsync
-	redisOnce  sync.Once
+	client  redis.UniversalClient
+	redsync *redsync.Redsync
 }
 
 // New creates Backend instance
@@ -37,16 +30,17 @@ func New(cnf *config.Config, addrs []string, db int) iface.Backend {
 		Backend: common.NewBackend(cnf),
 	}
 	parts := strings.Split(addrs[0], "@")
+	var password string
 	if len(parts) >= 2 {
 		// with password
-		b.password = strings.Join(parts[:len(parts)-1], "@")
+		password = strings.Join(parts[:len(parts)-1], "@")
 		addrs[0] = parts[len(parts)-1] // addr is the last one without @
 	}
 
 	opt := &redis.UniversalOptions{
 		Addrs:    addrs,
 		DB:       db,
-		Password: b.password,
+		Password: password,
 	}
 	if cnf.Redis != nil {
 		opt.MasterName = cnf.Redis.MasterName
@@ -58,10 +52,10 @@ func New(cnf *config.Config, addrs []string, db int) iface.Backend {
 }
 
 // InitGroup creates and saves a group meta data object
-func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
+func (b *Backend) InitGroup(groupID string, taskIDs []string) error {
 	groupMeta := &tasks.GroupMeta{
-		GroupID:   groupUUID,
-		TaskIDs:   taskUUIDs,
+		GroupID:   groupID,
+		TaskIDs:   taskIDs,
 		CreatedAt: time.Now().UTC(),
 	}
 
@@ -71,7 +65,7 @@ func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
 	}
 
 	expiration := b.getExpiration()
-	err = b.client.Set(context.Background(), groupUUID, encoded, expiration).Err()
+	err = b.client.Set(context.Background(), groupID, encoded, expiration).Err()
 	if err != nil {
 		return err
 	}
@@ -80,8 +74,8 @@ func (b *Backend) InitGroup(groupUUID string, taskUUIDs []string) error {
 }
 
 // GroupCompleted returns true if all tasks in a group finished
-func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, error) {
-	groupMeta, err := b.getGroupMeta(groupUUID)
+func (b *Backend) GroupCompleted(groupID string, groupTaskCount int) (bool, error) {
+	groupMeta, err := b.getGroupMeta(groupID)
 	if err != nil {
 		return false, err
 	}
@@ -102,8 +96,8 @@ func (b *Backend) GroupCompleted(groupUUID string, groupTaskCount int) (bool, er
 }
 
 // GroupTaskStates returns states of all tasks in the group
-func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*tasks.TaskState, error) {
-	groupMeta, err := b.getGroupMeta(groupUUID)
+func (b *Backend) GroupTaskStates(groupID string, groupTaskCount int) ([]*tasks.TaskState, error) {
+	groupMeta, err := b.getGroupMeta(groupID)
 	if err != nil {
 		return []*tasks.TaskState{}, err
 	}
@@ -115,14 +109,14 @@ func (b *Backend) GroupTaskStates(groupUUID string, groupTaskCount int) ([]*task
 // chord is never triggered multiple times. Returns a boolean flag to indicate
 // whether the worker should trigger chord (true) or no if it has been triggered
 // already (false)
-func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
+func (b *Backend) TriggerChord(groupID string) (bool, error) {
 	m := b.redsync.NewMutex("TriggerChordMutex")
 	if err := m.Lock(); err != nil {
 		return false, err
 	}
 	defer m.Unlock()
 
-	groupMeta, err := b.getGroupMeta(groupUUID)
+	groupMeta, err := b.getGroupMeta(groupID)
 	if err != nil {
 		return false, err
 	}
@@ -142,7 +136,7 @@ func (b *Backend) TriggerChord(groupUUID string) (bool, error) {
 	}
 
 	expiration := b.getExpiration()
-	err = b.client.Set(context.Background(), groupUUID, encoded, expiration).Err()
+	err = b.client.Set(context.Background(), groupID, encoded, expiration).Err()
 	if err != nil {
 		return false, err
 	}
@@ -201,7 +195,6 @@ func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error 
 
 // GetState returns the latest task state
 func (b *Backend) GetState(taskID string) (*tasks.TaskState, error) {
-
 	item, err := b.client.Get(context.Background(), taskID).Bytes()
 	if err != nil {
 		return nil, err
@@ -217,8 +210,8 @@ func (b *Backend) GetState(taskID string) (*tasks.TaskState, error) {
 }
 
 // PurgeState deletes stored task state
-func (b *Backend) PurgeState(taskUUID string) error {
-	err := b.client.Del(context.Background(), taskUUID).Err()
+func (b *Backend) PurgeState(taskID string) error {
+	err := b.client.Del(context.Background(), taskID).Err()
 	if err != nil {
 		return err
 	}
@@ -227,8 +220,8 @@ func (b *Backend) PurgeState(taskUUID string) error {
 }
 
 // PurgeGroupMeta deletes stored group meta data
-func (b *Backend) PurgeGroupMeta(groupUUID string) error {
-	err := b.client.Del(context.Background(), groupUUID).Err()
+func (b *Backend) PurgeGroupMeta(groupID string) error {
+	err := b.client.Del(context.Background(), groupID).Err()
 	if err != nil {
 		return err
 	}
@@ -237,8 +230,8 @@ func (b *Backend) PurgeGroupMeta(groupUUID string) error {
 }
 
 // getGroupMeta retrieves group meta data, convenience function to avoid repetition
-func (b *Backend) getGroupMeta(groupUUID string) (*tasks.GroupMeta, error) {
-	item, err := b.client.Get(context.Background(), groupUUID).Bytes()
+func (b *Backend) getGroupMeta(groupID string) (*tasks.GroupMeta, error) {
+	item, err := b.client.Get(context.Background(), groupID).Bytes()
 	if err != nil {
 		return nil, err
 	}
