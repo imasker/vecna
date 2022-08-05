@@ -43,10 +43,9 @@ func NewChain(signatures ...*Signature) (*Chain, error) {
 		if signature.ID == "" {
 			signature.ID = utils.GenerateID("task_")
 		}
-	}
-
-	if signatures[0].Code == "" {
-		signatures[0].Code = signatures[0].ID
+		if signature.Code == "" {
+			signature.Code = signature.ID
+		}
 	}
 
 	for i := len(signatures) - 1; i > 0; i-- {

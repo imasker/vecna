@@ -17,6 +17,7 @@ type Backend interface {
 	SetStateRetry(signature *tasks.Signature) error
 	SetStateSuccess(signature *tasks.Signature, results []*tasks.TaskResult) error
 	SetStateFailure(signature *tasks.Signature, err string) error
+	SetStateCanceled(signature *tasks.Signature) error
 	GetState(taskID string) (*tasks.TaskState, error)
 
 	// Purging stored task states and group meta data

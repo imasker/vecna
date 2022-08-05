@@ -85,6 +85,10 @@ func (a *AsyncResult) Touch() ([]reflect.Value, error) {
 		return tasks.ReflectTaskResults(a.taskState.Results)
 	}
 
+	if a.taskState.IsCanceled() {
+		return nil, errors.New("canceled")
+	}
+
 	return nil, nil
 }
 

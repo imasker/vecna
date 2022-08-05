@@ -98,6 +98,7 @@ type RedisConfig struct {
 	// Default: 20
 	DelayedTasksPollPeriod int    `yaml:"delayed_tasks_poll_period" envconfig:"REDIS_DELAYED_TASKS_POLL_PERIOD"`
 	DelayedTasksKey        string `yaml:"delayed_tasks_key" envconfig:"REDIS_DELAYED_TASKS_KEY"`
+	DelayedTasksCacheKey   string `yaml:"delayed_tasks_cache_key" envconfig:"REDIS_DELAYED_TASKS_CACHE_KEY"`
 
 	// PeriodicTasksKey ...
 	PeriodicTasksKey string `yaml:"periodic_tasks_key" envconfig:"REDIS_PERIODIC_TASKS_KEY"`

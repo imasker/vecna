@@ -193,6 +193,13 @@ func (b *Backend) SetStateFailure(signature *tasks.Signature, err string) error 
 	return b.updateState(taskState)
 }
 
+// SetStateCanceled updates task state to CANCELED
+func (b *Backend) SetStateCanceled(signature *tasks.Signature) error {
+	taskState := tasks.NewCanceledTaskState(signature)
+	b.mergeNewTaskState(taskState)
+	return b.updateState(taskState)
+}
+
 // GetState returns the latest task state
 func (b *Backend) GetState(taskID string) (*tasks.TaskState, error) {
 	item, err := b.client.Get(context.Background(), taskID).Bytes()

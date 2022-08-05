@@ -423,7 +423,7 @@ func (worker *Worker) resendPeriodicTask(signature *tasks.Signature) {
 
 	if signature.GroupID == "" {
 		// single task
-		task, err := worker.server.GetBroker().GetPeriodicTask(signature.Code)
+		task, err := worker.server.GetBroker().GetPeriodicTask(signature.Code, true)
 		if err != nil {
 			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
 			return
@@ -435,7 +435,7 @@ func (worker *Worker) resendPeriodicTask(signature *tasks.Signature) {
 		}
 	} else if signature.ChordCallback == nil {
 		// part of group
-		group, err := worker.server.GetBroker().GetPeriodicGroup(signature.Code)
+		group, err := worker.server.GetBroker().GetPeriodicGroup(signature.Code, true)
 		if err != nil {
 			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
 			return
@@ -447,7 +447,7 @@ func (worker *Worker) resendPeriodicTask(signature *tasks.Signature) {
 		}
 	} else {
 		// part of chord
-		chord, err := worker.server.GetBroker().GetPeriodicChord(signature.Code)
+		chord, err := worker.server.GetBroker().GetPeriodicChord(signature.Code, true)
 		if err != nil {
 			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
 			return

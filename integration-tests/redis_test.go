@@ -432,18 +432,135 @@ func TestPeriodicChord(t *testing.T) {
 	assert.Equal(t, "16", value)
 }
 
+func TestCancelDelayedTask(t *testing.T) {
+	key := "test_cancel_delayed_task"
+	err := redisServer.Set(key, "0")
+	assert.NoError(t, err)
+	task := newDelayedTask(key, 1)
+	asyncResult, err := server.SendTask(task)
+	assert.NoError(t, err)
+	err = server.CancelDelayedTask(task)
+	assert.NoError(t, err)
+	assert.True(t, asyncResult.GetState().IsCanceled())
+	_, err = asyncResult.Get(100 * time.Millisecond)
+	assert.Error(t, err)
+	assert.Equal(t, "canceled", err.Error())
+	time.Sleep(3 * time.Second)
+	value, err := redisServer.Get(key)
+	assert.NoError(t, err)
+	assert.Equal(t, "0", value)
+}
+
+func TestCancelPeriodicTask(t *testing.T) {
+	key := "test_cancel_periodic_task"
+	err := redisServer.Set(key, "0")
+	assert.NoError(t, err)
+	task := newPeriodicTask(key, 1)
+	asyncResult, err := server.SendPeriodicTask(Spec, task)
+	assert.NoError(t, err)
+	err = server.CancelPeriodicTask(task.Code)
+	assert.NoError(t, err)
+	assert.True(t, asyncResult.GetState().IsCanceled())
+	_, err = asyncResult.Get(100 * time.Millisecond)
+	assert.Error(t, err)
+	assert.Equal(t, "canceled", err.Error())
+	//time.Sleep(time.Minute)
+	//value, err := redisServer.Get(key)
+	//assert.NoError(t, err)
+	//assert.Equal(t, "0", value)
+}
+
+func TestCancelPeriodicChain(t *testing.T) {
+	key := "test_cancel_periodic_chain"
+	err := redisServer.Set(key, "0")
+	assert.NoError(t, err)
+	task1, task2, task3 := newPeriodicTask(key, 1), newPeriodicTask(key, 2), newPeriodicTask(key, 3)
+	chain, err := tasks.NewChain(task1, task2, task3)
+	assert.NoError(t, err)
+	asyncResult, err := server.SendPeriodicChain(Spec, chain)
+	assert.NoError(t, err)
+	err = server.CancelPeriodicTask(chain.Tasks[0].Code)
+	assert.NoError(t, err)
+	_, err = asyncResult.Get(100 * time.Millisecond)
+	assert.Error(t, err)
+	assert.Equal(t, "canceled", err.Error())
+	//time.Sleep(time.Minute)
+	//value, err := redisServer.Get(key)
+	//assert.NoError(t, err)
+	//assert.Equal(t, "0", value)
+}
+
+func TestCancelPeriodicGroup(t *testing.T) {
+	key := "test_cancel_periodic_group"
+	err := redisServer.Set(key, "0")
+	assert.NoError(t, err)
+	task1, task2, task3 := newPeriodicTask(key, 1), newPeriodicTask(key, 2), newPeriodicTask(key, 3)
+	group, err := tasks.NewGroup(task1, task2, task3)
+	assert.NoError(t, err)
+	asyncResults, err := server.SendPeriodicGroup(Spec, group, 10)
+	assert.NoError(t, err)
+	err = server.CancelPeriodicTask(group.Tasks[0].Code)
+	assert.NoError(t, err)
+	for _, asyncResult := range asyncResults {
+		_, err = asyncResult.Get(100 * time.Millisecond)
+		assert.Error(t, err)
+		assert.Equal(t, "canceled", err.Error())
+	}
+	//time.Sleep(time.Minute)
+	//value, err := redisServer.Get(key)
+	//assert.NoError(t, err)
+	//assert.Equal(t, "0", value)
+}
+
+func TestCancelPeriodicChord(t *testing.T) {
+	key := "test_cancel_periodic_chord"
+	err := redisServer.Set(key, "0")
+	assert.NoError(t, err)
+	task1, task2, task3 := newPeriodicTask(key, 1), newPeriodicTask(key, 2), newPeriodicTask(key, 3)
+	task4 := newPeriodicTask(key, 10)
+	group, err := tasks.NewGroup(task1, task2, task3)
+	assert.NoError(t, err)
+	chord, err := tasks.NewChord(group, task4)
+	assert.NoError(t, err)
+	asyncResult, err := server.SendPeriodicChord(Spec, chord, 10)
+	assert.NoError(t, err)
+	err = server.CancelPeriodicTask(chord.Group.Tasks[0].Code)
+	assert.NoError(t, err)
+	_, err = asyncResult.Get(100 * time.Millisecond)
+	assert.Error(t, err)
+	assert.Equal(t, "canceled", err.Error())
+	//time.Sleep(time.Minute)
+	//value, err := redisServer.Get(key)
+	//assert.NoError(t, err)
+	//assert.Equal(t, "0", value)
+}
+
 func registerRedisTestTasks(server *vecna.Server) {
 	tasks := map[string]interface{}{
 		"periodic_test": func(key string, delta int) (int, error) {
-			result, err := redisServer.Incr(key, delta)
-			if err != nil {
-				fmt.Printf("redis result: %d, error: %s\n", result, err)
-			}
-			return result, err
+			return redisServer.Incr(key, delta)
 		},
 	}
 
 	server.RegisterTasks(tasks)
+}
+
+func newDelayedTask(key string, delta int) *tasks.Signature {
+	eta := time.Now().Add(2 * time.Second)
+	return &tasks.Signature{
+		Name: "delayed_test",
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: key,
+			},
+			{
+				Type:  "int",
+				Value: delta,
+			},
+		},
+		ETA: &eta,
+	}
 }
 
 func newPeriodicTask(key string, delta int) *tasks.Signature {

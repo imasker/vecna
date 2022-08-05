@@ -2,7 +2,6 @@ package vecna
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -168,6 +167,9 @@ func (s *Server) SendTaskWithContext(ctx context.Context, signature *tasks.Signa
 	if signature.ID == "" {
 		signature.ID = utils.GenerateID("task_")
 	}
+	if signature.Code == "" {
+		signature.Code = signature.ID
+	}
 
 	// Set initial task state to PENDING
 	if err := s.backend.SetStatePending(signature); err != nil {
@@ -210,7 +212,7 @@ func (s *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error)
 	return s.SendChainWithContext(context.Background(), chain)
 }
 
-// SendGroupWithContext will inject the trace context in all the siganture headers before publishing it
+// SendGroupWithContext will inject the trace context in all the signature headers before publishing it
 func (s *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendGroup", tracing.ProducerOption(), tracing.VecnaTag, tracing.WorkflowGroupTag)
 	defer span.Finish()
@@ -434,54 +436,120 @@ func (s *Server) SendPeriodicChord(spec string, chord *tasks.Chord, sendConcurre
 	return result, err
 }
 
-func (s *Server) CancelTask() {
-
+// CancelDelayedTask cancels delayed task by it's signature before it be called
+func (s *Server) CancelDelayedTask(signature *tasks.Signature) error {
+	err := s.broker.RemoveDelayedTasks(signature.ID)
+	if err != nil {
+		return err
+	}
+	// Set task state to CANCELED
+	if err := s.backend.SetStateCanceled(signature); err != nil {
+		return fmt.Errorf("set state CANCELED error: %s", err)
+	}
+	return nil
 }
 
+// CancelDelayedChain cancels delayed chain by it's signature before it be called
+func (s *Server) CancelDelayedChain(chain *tasks.Chain) error {
+	err := s.broker.RemoveDelayedTasks(chain.Tasks[0].ID)
+	if err != nil {
+		return err
+	}
+	// Set task state to CANCELED
+	if err := s.backend.SetStateCanceled(chain.Tasks[0]); err != nil {
+		return fmt.Errorf("set state CANCELED error: %s", err)
+	}
+	return nil
+}
+
+// CancelDelayedGroup cancels delayed group by it's signature before it be called
+func (s *Server) CancelDelayedGroup(group *tasks.Group) error {
+	signatureIDs := make([]string, len(group.Tasks))
+	for i, signature := range group.Tasks {
+		signatureIDs[i] = signature.ID
+	}
+	err := s.broker.RemoveDelayedTasks(signatureIDs...)
+	if err != nil {
+		return err
+	}
+	// Set task state to CANCELED
+	for _, signature := range group.Tasks {
+		if err := s.backend.SetStateCanceled(signature); err != nil {
+			return fmt.Errorf("set state CANCELED error: %s", err)
+		}
+	}
+	return nil
+}
+
+// CancelDelayedChord cancels delayed chord by it's signature before it be called
+func (s *Server) CancelDelayedChord(chord *tasks.Chord) error {
+	signatureIDs := make([]string, len(chord.Group.Tasks))
+	for i, signature := range chord.Group.Tasks {
+		signatureIDs[i] = signature.ID
+	}
+	err := s.broker.RemoveDelayedTasks(signatureIDs...)
+	if err != nil {
+		return err
+	}
+	// Set task state to CANCELED
+	for _, signature := range chord.Group.Tasks {
+		if err := s.backend.SetStateCanceled(signature); err != nil {
+			return fmt.Errorf("set state CANCELED error: %s", err)
+		}
+	}
+	return nil
+}
+
+// CancelPeriodicTask cancels periodic task by it's code before next scheduled time
 func (s *Server) CancelPeriodicTask(code string) error {
-	var tasks []string
+	var signatures []*tasks.Signature
+	var signatureIDs []string
 	if strings.HasPrefix(code, "task_") {
 		// single task
-		signature, err := s.GetBroker().GetPeriodicTask(code)
+		signature, err := s.GetBroker().GetPeriodicTask(code, false)
 		if err != nil {
 			return err
 		}
-		msg, err := json.Marshal(signature)
-		if err != nil {
-			return err
-		}
-		tasks = append(tasks, string(msg))
+		signatureIDs = append(signatureIDs, signature.ID)
+		signatures = append(signatures, signature)
 	} else if strings.HasPrefix(code, "group_") {
 		// group
-		group, err := s.GetBroker().GetPeriodicGroup(code)
+		group, err := s.GetBroker().GetPeriodicGroup(code, false)
 		if err != nil {
 			return err
 		}
 		for _, signature := range group.Tasks {
-			msg, err := json.Marshal(signature)
-			if err != nil {
-				return err
-			}
-			tasks = append(tasks, string(msg))
+			signatureIDs = append(signatureIDs, signature.ID)
+			signatures = append(signatures, signature)
 		}
 	} else if strings.HasPrefix(code, "chord_") {
 		// chord
-		chord, err := s.GetBroker().GetPeriodicChord(code)
+		chord, err := s.GetBroker().GetPeriodicChord(code, false)
 		if err != nil {
 			return err
 		}
 		for _, signature := range chord.Group.Tasks {
-			msg, err := json.Marshal(signature)
-			if err != nil {
-				return err
-			}
-			tasks = append(tasks, string(msg))
+			signatureIDs = append(signatureIDs, signature.ID)
+			signatures = append(signatures, signature)
 		}
 	} else {
 		return nil
 	}
-	// todo:remove from redis
-	fmt.Println(tasks)
+	// remove from redis
+	err := s.broker.RemoveDelayedTasks(signatureIDs...)
+	if err != nil {
+		return err
+	}
+	err = s.broker.RemovePeriodicTask(code)
+	if err != nil {
+		return err
+	}
+	// Set task state to CANCELED
+	for _, signature := range signatures {
+		if err := s.backend.SetStateCanceled(signature); err != nil {
+			return fmt.Errorf("set state CANCELED error: %s", err)
+		}
+	}
 
 	return nil
 }

@@ -22,15 +22,17 @@ import (
 )
 
 const defaultRedisDelayedTasksKey = "delayed_tasks"
+const defaultRedisDelayedTasksCacheKey = "delayed_tasks_cache"
 
 // Broker represents a Redis broker
 type Broker struct {
 	common.Broker
-	client               redis.UniversalClient
-	consumingWG          sync.WaitGroup // wait group to make sure whole consumption completes
-	processingWG         sync.WaitGroup // use wait group to make sure task processing completes
-	delayedWG            sync.WaitGroup
-	redisDelayedTasksKey string
+	client                    redis.UniversalClient
+	consumingWG               sync.WaitGroup // wait group to make sure whole consumption completes
+	processingWG              sync.WaitGroup // use wait group to make sure task processing completes
+	delayedWG                 sync.WaitGroup
+	redisDelayedTasksKey      string
+	redisDelayedTasksCacheKey string
 }
 
 // New creates new Broker instance
@@ -59,6 +61,11 @@ func New(cnf *config.Config, addrs []string, db int) iface.Broker {
 		b.redisDelayedTasksKey = cnf.Redis.DelayedTasksKey
 	} else {
 		b.redisDelayedTasksKey = defaultRedisDelayedTasksKey
+	}
+	if cnf.Redis.DelayedTasksCacheKey != "" {
+		b.redisDelayedTasksCacheKey = cnf.Redis.DelayedTasksCacheKey
+	} else {
+		b.redisDelayedTasksCacheKey = defaultRedisDelayedTasksCacheKey
 	}
 	return b
 }
@@ -146,6 +153,12 @@ func (b *Broker) StartConsuming(consumerTag string, concurrency int, taskProcess
 					log.Logger.Error("%s", errs.NewErrCouldNotUnmarshalTaskSignature(task, err))
 				}
 
+				// delete delayed task's cache
+				if err := b.client.HDel(context.Background(), b.redisDelayedTasksCacheKey, signature.ID).Err(); err != nil {
+					log.Logger.Error("%s", err)
+				}
+
+				// publish task
 				if err := b.Publish(context.Background(), signature); err != nil {
 					log.Logger.Error("%s", err)
 				}
@@ -190,6 +203,10 @@ func (b *Broker) Publish(ctx context.Context, signature *tasks.Signature) error 
 		now := time.Now().UTC()
 
 		if signature.ETA.After(now) {
+			err = b.client.HSet(context.Background(), b.redisDelayedTasksCacheKey, signature.ID, msg).Err()
+			if err != nil {
+				return err
+			}
 			score := signature.ETA.UnixNano()
 			err = b.client.ZAdd(context.Background(), b.redisDelayedTasksKey, &redis.Z{Score: float64(score), Member: msg}).Err()
 			return err
@@ -429,12 +446,11 @@ func (b *Broker) PublishPeriodicTask(signature *tasks.Signature, group *tasks.Gr
 	}
 
 	err = b.client.HSet(context.Background(), queue, code, msg).Err()
-
 	return err
 }
 
 // GetPeriodicTask get original periodic task from redis
-func (b *Broker) GetPeriodicTask(code string) (*tasks.Signature, error) {
+func (b *Broker) GetPeriodicTask(code string, next bool) (*tasks.Signature, error) {
 	queue := b.GetConfig().Redis.PeriodicTasksKey
 	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
 	if err != nil {
@@ -442,13 +458,15 @@ func (b *Broker) GetPeriodicTask(code string) (*tasks.Signature, error) {
 	}
 	var signature tasks.Signature
 	err = json.Unmarshal(result, &signature)
-	// refresh taskID
-	signature.ID = utils.GenerateID("task_")
+	if next {
+		// refresh taskID
+		signature.ID = utils.GenerateID("task_")
+	}
 	return &signature, err
 }
 
 // GetPeriodicGroup get original periodic group from redis
-func (b *Broker) GetPeriodicGroup(code string) (*tasks.Group, error) {
+func (b *Broker) GetPeriodicGroup(code string, next bool) (*tasks.Group, error) {
 	queue := b.GetConfig().Redis.PeriodicTasksKey
 	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
 	if err != nil {
@@ -456,18 +474,20 @@ func (b *Broker) GetPeriodicGroup(code string) (*tasks.Group, error) {
 	}
 	var group tasks.Group
 	err = json.Unmarshal(result, &group)
-	// refresh taskID and groupID
-	groupID := utils.GenerateID("group_")
-	group.GroupID = groupID
-	for _, signature := range group.Tasks {
-		signature.ID = utils.GenerateID("task_")
-		signature.GroupID = groupID
+	if next {
+		// refresh taskID and groupID
+		groupID := utils.GenerateID("group_")
+		group.GroupID = groupID
+		for _, signature := range group.Tasks {
+			signature.ID = utils.GenerateID("task_")
+			signature.GroupID = groupID
+		}
 	}
 	return &group, err
 }
 
 // GetPeriodicChord get original periodic chord from redis
-func (b *Broker) GetPeriodicChord(code string) (*tasks.Chord, error) {
+func (b *Broker) GetPeriodicChord(code string, next bool) (*tasks.Chord, error) {
 	queue := b.GetConfig().Redis.PeriodicTasksKey
 	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
 	if err != nil {
@@ -475,24 +495,30 @@ func (b *Broker) GetPeriodicChord(code string) (*tasks.Chord, error) {
 	}
 	var chord tasks.Chord
 	err = json.Unmarshal(result, &chord)
-	// refresh taskID and groupID
-	groupID := utils.GenerateID("group_")
-	chord.Callback.ID = utils.GenerateID("chord_")
-	chord.Group.GroupID = groupID
-	for _, signature := range chord.Group.Tasks {
-		signature.ID = utils.GenerateID("task_")
-		signature.GroupID = groupID
+	if next {
+		// refresh taskID and groupID
+		groupID := utils.GenerateID("group_")
+		chord.Callback.ID = utils.GenerateID("chord_")
+		chord.Group.GroupID = groupID
+		for _, signature := range chord.Group.Tasks {
+			signature.ID = utils.GenerateID("task_")
+			signature.GroupID = groupID
+		}
 	}
 	return &chord, err
 }
 
-// RemovePeriodicTask remove periodic task from periodic_tasks queue and delayed_tasks queue
+// RemovePeriodicTask remove periodic task from periodic_tasks queue
 func (b *Broker) RemovePeriodicTask(code string) error {
 	queue := b.GetConfig().Redis.PeriodicTasksKey
 	return b.client.HDel(context.Background(), queue, code).Err()
 }
 
-// RemoveDelayedTask remove periodic task from periodic_tasks queue and delayed_tasks queue
-func (b *Broker) RemoveDelayedTask(encodedSignatures ...string) error {
-	return nil
+// RemoveDelayedTasks remove delayed task from delayed_tasks queue
+func (b *Broker) RemoveDelayedTasks(signatureIDs ...string) error {
+	members, err := b.client.HMGet(context.Background(), b.redisDelayedTasksCacheKey, signatureIDs...).Result()
+	if err != nil {
+		return err
+	}
+	return b.client.ZRem(context.Background(), b.redisDelayedTasksKey, members...).Err()
 }
