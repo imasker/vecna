@@ -19,12 +19,11 @@ import (
 
 // Worker represents a single worker process
 type Worker struct {
-	server      *Server
-	ConsumerTag string
-	Concurrency int
-	Queue       string
-	// todo: change the type to func(signature *tasks.Signature, err error)
-	errorHandler      func(err error)
+	server            *Server
+	ConsumerTag       string
+	Concurrency       int
+	Queue             string
+	errorHandler      func(signature *tasks.Signature, err error)
 	preTaskHandler    func(signature *tasks.Signature)
 	postTaskHandler   func(signature *tasks.Signature)
 	preConsumeHandler func(worker *Worker) bool
@@ -70,7 +69,7 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 
 			if retry {
 				if worker.errorHandler != nil {
-					worker.errorHandler(err)
+					worker.errorHandler(nil, err)
 				} else {
 					log.Logger.Warning("Broker failed with error: %s", err)
 				}
@@ -353,7 +352,7 @@ func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) erro
 	}
 
 	if worker.errorHandler != nil {
-		worker.errorHandler(taskErr)
+		worker.errorHandler(signature, taskErr)
 	} else {
 		log.Logger.Error("Failed processing task %s. Error = %v", signature.ID, taskErr)
 	}
@@ -373,7 +372,7 @@ func (worker *Worker) taskFailed(signature *tasks.Signature, taskErr error) erro
 }
 
 // SetErrorHandler sets a custom error handler for task errors
-func (worker *Worker) SetErrorHandler(handler func(err error)) {
+func (worker *Worker) SetErrorHandler(handler func(signature *tasks.Signature, err error)) {
 	worker.errorHandler = handler
 }
 

@@ -45,7 +45,7 @@ func NewServer(cnf *config.Config, brokerServer brokersiface.Broker, backendServ
 	return srv
 }
 
-// NewWorker creates Worker instace
+// NewWorker creates Worker instance
 func (s *Server) NewWorker(consumerTag string, concurrency int) *Worker {
 	return &Worker{
 		server:      s,

@@ -119,8 +119,12 @@ func worker() error {
 
 	// Here we inject some custom code for error handling,
 	// start and end of task hooks, useful for metrics for example.
-	errorHandler := func(err error) {
-		log.Logger.Error("I am an error handler: %s", err)
+	errorHandler := func(signature *tasks.Signature, err error) {
+		var name string
+		if signature != nil {
+			name = signature.Name
+		}
+		log.Logger.Error("I am an error handler of [%s]: %s", name, err)
 	}
 
 	preTaskHandler := func(signature *tasks.Signature) {
