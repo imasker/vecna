@@ -24,10 +24,7 @@ By the way, the registered periodic tasks will not be lost even after the servic
     * [DefaultQueue](#defaultqueue)
     * [ResultBackend](#resultbackend)
     * [ResultsExpireIn](#resultsexpirein)
-    * [AMQP](#amqp-2)
-    * [DynamoDB](#dynamodb)
-    * [Redis](#redis-2)
-    * [GCPPubSub](#gcppubsub)
+    * [Redis](#redis-3)
 * [Custom Logger](#custom-logger)
 * [Server](#server)
 * [Workers](#workers)
@@ -49,6 +46,12 @@ By the way, the registered periodic tasks will not be lost even after the servic
     * [Periodic Groups](#periodic-groups)
     * [Periodic Chains](#periodic-chains)
     * [Periodic Chords](#periodic-chords)
+    * [Cancel Periodic Task/Chain/Group/Chord](#cancel-periodic-taskchaingroupchord)
+* [Cancel Delayed Tasks & Workflows](#cancel-delayed-tasks--workflows)
+    * [Periodic Tasks](#periodic-tasks-1)
+    * [Periodic Groups](#periodic-groups-1)
+    * [Periodic Chains](#periodic-chains-1)
+    * [Periodic Chords](#periodic-chords-1)
 * [Development](#development)
     * [Requirements](#requirements)
     * [Dependencies](#dependencies)
@@ -152,9 +155,63 @@ How long to store task results for in seconds. Defaults to `3600` (1 hour).
 
 #### Redis
 
-Redis related configuration. Not necessary if you are using other backend.
+Redis related configuration.
 
-See: [config](/config/config.go) (TODO)
+```go
+// RedisConfig ...
+type RedisConfig struct {
+  // Maximum number of idle connections in the pool.
+  // Default: 10
+  MaxIdle int `yaml:"max_idle" envconfig:"REDIS_MAX_IDLE"`
+
+  // Maximum number of connections allocated by the pool at a given time.
+  // When zero, there is no limit on the number of connections in the pool.
+  // Default: 100
+  MaxActive int `yaml:"max_active" envconfig:"REDIS_MAX_ACTIVE"`
+
+  // Close connections after remaining idle for this duration in seconds. If the value
+  // is zero, then idle connections are not closed. Applications should set
+  // the timeout to a value less than the server's timeout.
+  // Default: 300
+  IdleTimeout int `yaml:"max_idle_timeout" envconfig:"REDIS_IDLE_TIMEOUT"`
+
+  // If Wait is true and the pool is at the MaxActive limit, then Get() waits
+  // for a connection to be returned to the pool before returning.
+  // Default: true
+  Wait bool `yaml:"wait" envconfig:"REDIS_WAIT"`
+
+  // ReadTimeout specifies the timeout in seconds for reading a single command reply.
+  // Default: 15
+  ReadTimeout int `yaml:"read_timeout" envconfig:"REDIS_READ_TIMEOUT"`
+
+  // WriteTimeout specifies the timeout in seconds for writing a single command.
+  // Default: 15
+  WriteTimeout int `yaml:"write_timeout" envconfig:"REDIS_WRITE_TIMEOUT"`
+
+  // ConnectTimeout specifies the timeout in seconds for connecting to the Redis server when
+  // no DialNetDial option is specified.
+  // Default: 15
+  ConnectTimeout int `yaml:"connect_timeout" envconfig:"REDIS_CONNECT_TIMEOUT"`
+
+  // NormalTasksPollPeriod specifies the period in milliseconds when polling redis for normal tasks
+  // Default: 1000
+  NormalTasksPollPeriod int `yaml:"normal_tasks_poll_period" envconfig:"REDIS_NORMAL_TASKS_POLL_PERIOD"`
+
+  // DelayedTasksPollPeriod specifies the period in milliseconds when polling redis for delayed tasks
+  // Default: 20
+  DelayedTasksPollPeriod int    `yaml:"delayed_tasks_poll_period" envconfig:"REDIS_DELAYED_TASKS_POLL_PERIOD"`
+  DelayedTasksKey        string `yaml:"delayed_tasks_key" envconfig:"REDIS_DELAYED_TASKS_KEY"`
+  DelayedTasksCacheKey   string `yaml:"delayed_tasks_cache_key" envconfig:"REDIS_DELAYED_TASKS_CACHE_KEY"`
+
+  // PeriodicTasksKey ...
+  PeriodicTasksKey string `yaml:"periodic_tasks_key" envconfig:"REDIS_PERIODIC_TASKS_KEY"`
+  // CanceledTasksKey ...
+  CanceledTasksKey string `yaml:"canceled_tasks_key" envconfig:"REDIS_CANCELEDTASKSKEY"`
+
+  // MasterName specifies a redis master name in order to configure a sentinel-backed redis FailoverClient
+  MasterName string `yaml:"master_name" envconfig:"REDIS_MASTER_NAME"`
+}
+```
 
 ### Custom Logger
 
@@ -928,7 +985,7 @@ if err != nil {
 // remember to save the task code `chain.Tasks[0].Code`, you can use it to cancel this periodic chain
 ```
 
-#### Periodic Chord
+#### Periodic Chords
 
 ```go
 import (
@@ -1043,7 +1100,7 @@ if err != nil {
 }
 ```
 
-#### Periodic Chord
+#### Periodic Chords
 
 ```go
 import (
