@@ -123,7 +123,7 @@ func (a *AsyncResult) GetWithTimeout(timeoutDuration, sleepDuration time.Duratio
 
 // GetState returns latest task state
 func (a *AsyncResult) GetState() *tasks.TaskState {
-	if a.taskState.IsCompleted() {
+	if a.taskState.IsCompleted() || a.taskState.IsCanceled() {
 		return a.taskState
 	}
 

@@ -2,8 +2,10 @@ package vecna
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +17,6 @@ import (
 	brokersiface "vecna/brokers/iface"
 	"vecna/config"
 	locksiface "vecna/locks/iface"
-	"vecna/log"
 	"vecna/tasks"
 	"vecna/tracing"
 	"vecna/utils"
@@ -30,7 +31,6 @@ type Server struct {
 	broker            brokersiface.Broker
 	backend           backendsiface.Backend
 	lock              locksiface.Lock
-	scheduler         *cron.Cron
 	prePublishHandler func(signature *tasks.Signature)
 }
 
@@ -42,12 +42,7 @@ func NewServer(cnf *config.Config, brokerServer brokersiface.Broker, backendServ
 		broker:          brokerServer,
 		backend:         backendServer,
 		lock:            lock,
-		scheduler:       cron.New(),
 	}
-
-	// Run scheduler job
-	go srv.scheduler.Run()
-
 	return srv
 }
 
@@ -202,17 +197,17 @@ func (s *Server) SendChainWithContext(ctx context.Context, chain *tasks.Chain) (
 
 	tracing.AnnotateSpanWithChainInfo(span, chain)
 
-	return s.SendChain(chain)
-}
-
-// SendChain triggers a chain of tasks
-func (s *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	_, err := s.SendTask(chain.Tasks[0])
 	if err != nil {
 		return nil, err
 	}
 
 	return result.NewChainAsyncResult(chain.Tasks, s.backend), nil
+}
+
+// SendChain triggers a chain of tasks
+func (s *Server) SendChain(chain *tasks.Chain) (*result.ChainAsyncResult, error) {
+	return s.SendChainWithContext(context.Background(), chain)
 }
 
 // SendGroupWithContext will inject the trace context in all the siganture headers before publishing it
@@ -317,116 +312,176 @@ func (s *Server) SendChord(chord *tasks.Chord, sendConcurrency int) (*result.Cho
 	return s.SendChordWithContext(context.Background(), chord, sendConcurrency)
 }
 
-// RegisterPeriodicTask register a periodic task which will be triggered periodically
-func (s *Server) RegisterPeriodicTask(spec, name string, signature *tasks.Signature) error {
+// SendPeriodicTask register a periodic task which will be triggered periodically
+func (s *Server) SendPeriodicTask(spec string, signature *tasks.Signature) (*result.AsyncResult, error) {
 	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	signature.Spec = spec
+
+	// save signature in redis for next period
+	err = s.broker.PublishPeriodicTask(signature, nil, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	f := func() {
-		// get lock
-		err := s.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		// send task
-		_, err = s.SendTask(tasks.CopySignature(signature))
-		if err != nil {
-			log.Logger.Error("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
+	// get lock
+	nextCallTime := schedule.Next(time.Now())
+	err = s.lock.LockWithRetries(utils.GetLockName(signature.Code, signature.Spec), nextCallTime.UnixNano()-1)
+	if err != nil {
+		return nil, err
 	}
 
-	_, err = s.scheduler.AddFunc(spec, f)
-	return err
+	// send task
+	eta := nextCallTime.UTC()
+	signature.ETA = &eta
+	return s.SendTask(signature)
 }
 
-// RegisterPeriodicChain register a periodic chain which will be triggered periodically
-func (s *Server) RegisterPeriodicChain(spec, name string, signatures ...*tasks.Signature) error {
+// SendPeriodicChain register a periodic chain which will be triggered periodically
+func (s *Server) SendPeriodicChain(spec string, chain *tasks.Chain) (*result.ChainAsyncResult, error) {
 	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	chain.Tasks[0].Spec = spec
+
+	// save signature in redis for next period
+	err = s.broker.PublishPeriodicTask(chain.Tasks[0], nil, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	f := func() {
-		// new chain
-		chain := tasks.NewChain(tasks.CopySignatures(signatures...)...)
-
-		// get lock
-		err := s.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		// send task
-		_, err = s.SendChain(chain)
-		if err != nil {
-			log.Logger.Error("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
+	// get lock
+	nextCallTime := schedule.Next(time.Now())
+	err = s.lock.LockWithRetries(utils.GetLockName(chain.Tasks[0].Code, chain.Tasks[0].Spec), nextCallTime.UnixNano()-1)
+	if err != nil {
+		return nil, err
 	}
 
-	_, err = s.scheduler.AddFunc(spec, f)
-	return err
+	// send task
+	eta := nextCallTime.UTC()
+	chain.Tasks[0].ETA = &eta
+	return s.SendChain(chain)
 }
 
-// RegisterPeriodicGroup register a periodic group which will be triggered periodically
-func (s *Server) RegisterPeriodicGroup(spec, name string, sendConcurrency int, signatures ...*tasks.Signature) error {
+// SendPeriodicGroup register a periodic group which will be triggered periodically
+func (s *Server) SendPeriodicGroup(spec string, group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
 	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	for _, signature := range group.Tasks {
+		signature.Spec = spec
 	}
 
-	f := func() {
-		// new group
-		group := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
-
-		// get lock
-		err := s.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		// send task
-		_, err = s.SendGroup(group, sendConcurrency)
-		if err != nil {
-			log.Logger.Error("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
+	// save signature in redis for next period
+	err = s.broker.PublishPeriodicTask(nil, group, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	_, err = s.scheduler.AddFunc(spec, f)
-	return err
+	// get lock
+	nextCallTime := schedule.Next(time.Now())
+	err = s.lock.LockWithRetries(utils.GetLockName(group.Tasks[0].Code, group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
+	if err != nil {
+		return nil, err
+	}
+
+	// send task
+	eta := nextCallTime.UTC()
+	for _, signature := range group.Tasks {
+		signature.ETA = &eta
+	}
+	return s.SendGroup(group, sendConcurrency)
 }
 
-// RegisterPeriodicChord register a periodic chord which will be triggered periodically
-func (s *Server) RegisterPeriodicChord(spec, name string, sendConcurrency int, callback *tasks.Signature, signatures ...*tasks.Signature) error {
+// SendPeriodicChord register a periodic chord which will be triggered periodically
+func (s *Server) SendPeriodicChord(spec string, chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
 	// check spec
 	schedule, err := cron.ParseStandard(spec)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	for _, signature := range chord.Group.Tasks {
+		signature.Spec = spec
 	}
 
-	f := func() {
-		// new chord
-		group := tasks.NewGroup(tasks.CopySignatures(signatures...)...)
-		chord := tasks.NewChord(group, tasks.CopySignature(callback))
-
-		// get lock
-		err := s.lock.LockWithRetries(utils.GetLockName(name, spec), schedule.Next(time.Now()).UnixNano()-1)
-		if err != nil {
-			return
-		}
-
-		// send task
-		_, err = s.SendChord(chord, sendConcurrency)
-		if err != nil {
-			log.Logger.Error("periodic task failed. task name is: %s. error is %s", name, err.Error())
-		}
+	// save signature in redis for next period
+	err = s.broker.PublishPeriodicTask(nil, nil, chord)
+	if err != nil {
+		return nil, err
 	}
 
-	_, err = s.scheduler.AddFunc(spec, f)
-	return err
+	// get lock
+	nextCallTime := schedule.Next(time.Now())
+	err = s.lock.LockWithRetries(utils.GetLockName(chord.Group.Tasks[0].Code, chord.Group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
+	if err != nil {
+		return nil, err
+	}
+
+	// send task
+	eta := nextCallTime.UTC()
+	for _, signature := range chord.Group.Tasks {
+		signature.ETA = &eta
+	}
+	result, err := s.SendChord(chord, sendConcurrency)
+
+	return result, err
+}
+
+func (s *Server) CancelTask() {
+
+}
+
+func (s *Server) CancelPeriodicTask(code string) error {
+	var tasks []string
+	if strings.HasPrefix(code, "task_") {
+		// single task
+		signature, err := s.GetBroker().GetPeriodicTask(code)
+		if err != nil {
+			return err
+		}
+		msg, err := json.Marshal(signature)
+		if err != nil {
+			return err
+		}
+		tasks = append(tasks, string(msg))
+	} else if strings.HasPrefix(code, "group_") {
+		// group
+		group, err := s.GetBroker().GetPeriodicGroup(code)
+		if err != nil {
+			return err
+		}
+		for _, signature := range group.Tasks {
+			msg, err := json.Marshal(signature)
+			if err != nil {
+				return err
+			}
+			tasks = append(tasks, string(msg))
+		}
+	} else if strings.HasPrefix(code, "chord_") {
+		// chord
+		chord, err := s.GetBroker().GetPeriodicChord(code)
+		if err != nil {
+			return err
+		}
+		for _, signature := range chord.Group.Tasks {
+			msg, err := json.Marshal(signature)
+			if err != nil {
+				return err
+			}
+			tasks = append(tasks, string(msg))
+		}
+	} else {
+		return nil
+	}
+	// todo:remove from redis
+	fmt.Println(tasks)
+
+	return nil
 }

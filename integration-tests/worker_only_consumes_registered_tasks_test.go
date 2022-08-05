@@ -92,7 +92,7 @@ func TestWorkerOnlyConsumeRegisteredTask(t *testing.T) {
 	go worker1.Launch()
 	go worker2.Launch()
 
-	group := tasks.NewGroup(&task1, &task2)
+	group, _ := tasks.NewGroup(&task1, &task2)
 	asyncResults, err := server1.SendGroup(group, 10)
 	if err != nil {
 		t.Error(err)

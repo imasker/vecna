@@ -62,6 +62,13 @@ type Signature struct {
 	// IgnoreWhenTaskNotRegistered auto removes the request when there is no handler available
 	// When this is true a task with no handler will be ignored and not placed back in the queue
 	IgnoreWhenTaskNotRegistered bool
+	// Spec marks this task being a periodic task. It requires 5 entries representing: minute,
+	// hour, day of month, month and day of week, in that order.
+	Spec string
+	// Code every task in group or in periodic tasks has the same code, so that we can cancel the
+	// task by using this code. By default, code will be the GroupID if exists or ID. It can also
+	// be specified by the user.
+	Code string
 }
 
 func NewSignature(name string, args []Arg) (*Signature, error) {

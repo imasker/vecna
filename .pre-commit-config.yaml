@@ -28,6 +28,14 @@ repos:
 #      args: [-over=20]
     - id: golangci-lint
 #    - id: go-critic
-    - id: go-unit-tests
+#    - id: go-unit-tests
 #    - id: go-build
     - id: go-mod-tidy
+- repo: local
+  hooks:
+    - id: go-test
+      name: 'go-test'
+      entry: .hooks/run-go-test.sh
+      files: '\.go$'
+      language: 'script'
+      description: "Runs `go test`"

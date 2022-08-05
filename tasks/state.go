@@ -15,6 +15,8 @@ const (
 	StateSuccess = "SUCCESS"
 	// StateFailure - when processing of the task fails
 	StateFailure = "FAILURE"
+	// StateCanceled - when the task is canceled
+	StateCanceled = "CANCELED"
 )
 
 // TaskState represents a state of a task
@@ -92,6 +94,14 @@ func NewRetryTaskState(signature *Signature) *TaskState {
 	}
 }
 
+// NewCanceledTaskState ...
+func NewCanceledTaskState(signature *Signature) *TaskState {
+	return &TaskState{
+		TaskID: signature.ID,
+		State:  StateCanceled,
+	}
+}
+
 // IsCompleted returns true if state is SUCCESS or FAILURE,
 // i.e. the task has finished processing and either succeeded or failed.
 func (t *TaskState) IsCompleted() bool {
@@ -106,4 +116,9 @@ func (t *TaskState) IsSuccess() bool {
 // IsFailure returns true if state is FAILURE
 func (t *TaskState) IsFailure() bool {
 	return t.State == StateFailure
+}
+
+// IsCanceled returns true if state is CANCELED
+func (t *TaskState) IsCanceled() bool {
+	return t.State == StateCanceled
 }

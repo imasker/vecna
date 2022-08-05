@@ -17,6 +17,11 @@ type Broker interface {
 	GetPendingTasks(queue string) ([]*tasks.Signature, error)
 	GetDelayedTasks() ([]*tasks.Signature, error)
 	AdjustRoutingKey(s *tasks.Signature)
+	PublishPeriodicTask(signature *tasks.Signature, group *tasks.Group, chord *tasks.Chord) error
+	GetPeriodicTask(code string) (*tasks.Signature, error)
+	GetPeriodicGroup(code string) (*tasks.Group, error)
+	GetPeriodicChord(code string) (*tasks.Chord, error)
+	RemovePeriodicTask(code string) error
 }
 
 // TaskProcessor - can process a delivered task

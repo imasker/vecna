@@ -2,6 +2,7 @@ package integration_tests
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -26,16 +27,21 @@ func (a ascendingInt64s) Less(i, j int) bool {
 	return a[i] < a[j]
 }
 
+const Spec = "* * * * *"
+
+// testAll for testing instance of different data source
 func testAll(t *testing.T, server *vecna.Server) {
 	testSendTask(t, server)
 	testSendGroup(t, server, 0) // with unlimited concurrency
 	testSendGroup(t, server, 2) // with limited concurrency (2 parallel tasks at the most)
 	testSendChord(t, server)
+	testSendChord2(t, server)
 	testSendChain(t, server)
 	testReturnJustError(t, server)
 	testReturnMultipleValues(t, server)
 	testPanic(t, server)
 	testDelay(t, server)
+	testDelay2(t, server)
 }
 
 func testSendTask(t *testing.T, server *vecna.Server) {
@@ -82,7 +88,7 @@ func testSendTask(t *testing.T, server *vecna.Server) {
 func testSendGroup(t *testing.T, server *vecna.Server, sendConcurrency int) {
 	t1, t2, t3 := newAddTask(1, 1), newAddTask(2, 2), newAddTask(5, 6)
 
-	group := tasks.NewGroup(t1, t2, t3)
+	group, _ := tasks.NewGroup(t1, t2, t3)
 
 	asyncResults, err := server.SendGroup(group, sendConcurrency)
 	if err != nil {
@@ -120,7 +126,7 @@ func testSendGroup(t *testing.T, server *vecna.Server, sendConcurrency int) {
 func testSendChain(t *testing.T, server *vecna.Server) {
 	t1, t2, t3 := newAddTask(2, 2), newAddTask(5, 6), newMultipleTask(4)
 
-	chain := tasks.NewChain(t1, t2, t3)
+	chain, _ := tasks.NewChain(t1, t2, t3)
 
 	chainAsyncResult, err := server.SendChain(chain)
 	if err != nil {
@@ -144,9 +150,9 @@ func testSendChain(t *testing.T, server *vecna.Server) {
 func testSendChord(t *testing.T, server *vecna.Server) {
 	t1, t2, t3, t4 := newAddTask(1, 1), newAddTask(2, 2), newAddTask(5, 6), newMultipleTask()
 
-	group := tasks.NewGroup(t1, t2, t3)
+	group, _ := tasks.NewGroup(t1, t2, t3)
 
-	chord := tasks.NewChord(group, t4)
+	chord, _ := tasks.NewChord(group, t4)
 
 	chordAsyncResult, err := server.SendChord(chord, 10)
 	if err != nil {
@@ -278,6 +284,59 @@ func testDelay(t *testing.T, server *vecna.Server) {
 	}
 }
 
+func testDelay2(t *testing.T, server *vecna.Server) {
+	now := time.Now().UTC()
+
+	eta := now.Add(100 * time.Second)
+	task := newDelayTask(eta)
+	_, err := server.SendTask(task)
+	if err != nil {
+		t.Error(err)
+	}
+
+	eta = now.Add(100 * time.Millisecond)
+	task = newDelayTask(eta)
+	asyncResult, err := server.SendTask(task)
+	if err != nil {
+		t.Error(err)
+	}
+
+	results, err := asyncResult.Get(5 * time.Millisecond)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("Number of results returned = %d. Wanted %d", len(results), 1)
+	}
+
+	tm, ok := results[0].Interface().(int64)
+	if !ok {
+		t.Errorf("Could not type assert = %s(%v) to int64", results[0].Type().String(), results[0].Interface())
+	}
+
+	if tm < eta.UnixNano() {
+		t.Errorf("result = %s(%v), want >= int64(%d)", results[0].Type().String(), results[0].Interface(), eta.UnixNano())
+	}
+}
+
+func testSendChord2(t *testing.T, server *vecna.Server) {
+	task1, task2, task3 := tasks.Signature{Name: "periodic_chord_test"}, tasks.Signature{Name: "periodic_chord_test"}, tasks.Signature{Name: "periodic_chord_test"}
+	task4 := tasks.Signature{Name: "periodic_test", Immutable: true}
+	group, err := tasks.NewGroup(&task1, &task2, &task3)
+	assert.NoError(t, err)
+	chord, err := tasks.NewChord(group, &task4)
+	assert.NoError(t, err)
+	chordAsyncResult, err := server.SendChord(chord, 10)
+	assert.NoError(t, err)
+	results, err := chordAsyncResult.Get(5 * time.Millisecond)
+	assert.NoError(t, err)
+	if len(results) != 1 {
+		t.Errorf("Number of results returned = %d. Wanted %d", len(results), 1)
+	}
+	assert.Greater(t, results[0].Interface(), int64(0))
+}
+
 func registerTestTasks(server *vecna.Server) {
 	tasks := map[string]interface{}{
 		"add": func(args ...int64) (int64, error) {
@@ -321,6 +380,28 @@ func registerTestTasks(server *vecna.Server) {
 		},
 		"delay_test": func() (int64, error) {
 			return time.Now().UTC().UnixNano(), nil
+		},
+		"periodic_test": func() (int64, error) {
+			now := time.Now()
+			fmt.Println(now.String())
+			return now.UTC().UnixNano(), nil
+		},
+		"periodic_chain_test": func() error {
+			fmt.Println(time.Now().String() + " chain")
+			return nil
+		},
+		"periodic_group_test": func() error {
+			fmt.Println(time.Now().String() + " group")
+			return nil
+		},
+		"periodic_chord_test": func() error {
+			fmt.Println(time.Now().String() + " chord")
+			return nil
+		},
+		"periodic_chord_callback": func() (int64, error) {
+			now := time.Now()
+			fmt.Println(now.String() + " chord_callback1")
+			return now.UTC().UnixNano(), nil
 		},
 	}
 

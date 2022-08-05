@@ -42,4 +42,5 @@ func TestNewFromEnvironment(t *testing.T) {
 	assert.Equal(t, 16, cnf.Redis.ConnectTimeout)
 	assert.Equal(t, 900, cnf.Redis.NormalTasksPollPeriod)
 	assert.Equal(t, 600, cnf.Redis.DelayedTasksPollPeriod)
+	assert.Equal(t, 100, cnf.DefaultSendConcurrency)
 }

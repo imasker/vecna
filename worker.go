@@ -169,6 +169,9 @@ func (worker *Worker) Process(signature *tasks.Signature) error {
 		defer worker.postTaskHandler(signature)
 	}
 
+	// Defer send task in next period
+	defer worker.resendPeriodicTask(signature)
+
 	// Call the task
 	results, err := task.Call()
 	if err != nil {
@@ -334,6 +337,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 
 	// Send the chord task
 	_, err = worker.server.SendTask(signature.ChordCallback)
+	log.Logger.Info("send callback")
 	if err != nil {
 		return err
 	}
@@ -408,4 +412,50 @@ func RedactURL(urlString string) string {
 		return urlString
 	}
 	return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+}
+
+// resendPeriodicTask sends periodic task for the next schedule
+func (worker *Worker) resendPeriodicTask(signature *tasks.Signature) {
+	// If the task is not a periodic task, just return
+	if signature.Spec == "" {
+		return
+	}
+
+	if signature.GroupID == "" {
+		// single task
+		task, err := worker.server.GetBroker().GetPeriodicTask(signature.Code)
+		if err != nil {
+			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+		_, err = worker.server.SendPeriodicTask(signature.Spec, task)
+		if err != nil {
+			log.Logger.Error("failed to resend periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+	} else if signature.ChordCallback == nil {
+		// part of group
+		group, err := worker.server.GetBroker().GetPeriodicGroup(signature.Code)
+		if err != nil {
+			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+		_, err = worker.server.SendPeriodicGroup(signature.Spec, group, worker.server.GetConfig().DefaultSendConcurrency)
+		if err != nil {
+			log.Logger.Error("failed to resend periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+	} else {
+		// part of chord
+		chord, err := worker.server.GetBroker().GetPeriodicChord(signature.Code)
+		if err != nil {
+			log.Logger.Error("failed to recall periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+		_, err = worker.server.SendPeriodicChord(signature.Spec, chord, worker.server.GetConfig().DefaultSendConcurrency)
+		if err != nil {
+			log.Logger.Error("failed to resend periodic task[%s], err: %s", signature.Code, err)
+			return
+		}
+	}
 }

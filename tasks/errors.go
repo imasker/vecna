@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -30,3 +31,9 @@ func NewErrRetryTaskLater(msg string, retryIn time.Duration) ErrRetryTaskLater {
 type Retryable interface {
 	RetryIn() time.Duration
 }
+
+// ErrCodeInconsistent indicates that the tasks in the same group or chord has different code which should be consistent
+var ErrCodeInconsistent = errors.New("tasks should have same code")
+
+// ErrNoTasks indicates that there are not even one task in the group/chord/chain
+var ErrNoTasks = errors.New("at least one task")

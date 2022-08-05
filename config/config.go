@@ -16,7 +16,7 @@ var (
 	// Start with sensible default values
 	defaultCnf = &Config{
 		Broker:          "redis://localhost:6379/0",
-		DefaultQueue:    "machinery_tasks",
+		DefaultQueue:    "vecna_tasks",
 		ResultBackend:   "redis://localhost:6379/0",
 		ResultsExpireIn: DefaultResultsExpireIn,
 		Redis: &RedisConfig{
@@ -28,6 +28,7 @@ var (
 			NormalTasksPollPeriod:  1000,
 			DelayedTasksPollPeriod: 500,
 		},
+		DefaultSendConcurrency: 100,
 	}
 
 	reloadDelay = time.Second * 10
@@ -43,8 +44,9 @@ type Config struct {
 	ResultsExpireIn         int          `yaml:"results_expire_in" envconfig:"RESULTS_EXPIRE_IN"`
 	Redis                   *RedisConfig `yaml:"redis"`
 	TLSConfig               *tls.Config
-	// NoUnixSignals - when set disables signal handling in machinery
-	NoUnixSignals bool `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
+	// NoUnixSignals - when set disables signal handling in vecna
+	NoUnixSignals          bool `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
+	DefaultSendConcurrency int  `yaml:"default_send_concurrency" envconfig:"DEFAULT_SEND_CONCURRENCY"`
 }
 
 // QueueBindingArgs arguments which are used when binding to the exchange
@@ -96,6 +98,11 @@ type RedisConfig struct {
 	// Default: 20
 	DelayedTasksPollPeriod int    `yaml:"delayed_tasks_poll_period" envconfig:"REDIS_DELAYED_TASKS_POLL_PERIOD"`
 	DelayedTasksKey        string `yaml:"delayed_tasks_key" envconfig:"REDIS_DELAYED_TASKS_KEY"`
+
+	// PeriodicTasksKey ...
+	PeriodicTasksKey string `yaml:"periodic_tasks_key" envconfig:"REDIS_PERIODIC_TASKS_KEY"`
+	// CanceledTasksKey ...
+	CanceledTasksKey string `yaml:"canceled_tasks_key" envconfig:"REDIS_CANCELEDTASKSKEY"`
 
 	// MasterName specifies a redis master name in order to configure a sentinel-backed redis FailoverClient
 	MasterName string `yaml:"master_name" envconfig:"REDIS_MASTER_NAME"`

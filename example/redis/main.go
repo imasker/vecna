@@ -65,7 +65,7 @@ func main() {
 
 func startServer() (*vecna.Server, error) {
 	cnf := &config.Config{
-		DefaultQueue:    "machinery_tasks",
+		DefaultQueue:    "vecna_tasks",
 		ResultsExpireIn: 3600,
 		Redis: &config.RedisConfig{
 			MaxIdle:                3,
@@ -350,7 +350,7 @@ func send() error {
 	initTasks()
 	log.Logger.Info("Group of tasks (parallel execution):")
 
-	group := tasks.NewGroup(&addTask0, &addTask1, &addTask2)
+	group, _ := tasks.NewGroup(&addTask0, &addTask1, &addTask2)
 	asyncResults, err := server.SendGroupWithContext(ctx, group, 10)
 	if err != nil {
 		return fmt.Errorf("could not send group: %s", err)
@@ -367,8 +367,8 @@ func send() error {
 	// Now let's try a group with a chord
 	initTasks()
 	log.Logger.Info("Group of tasks with a callback (chord):")
-	group = tasks.NewGroup(&addTask0, &addTask1, &addTask2)
-	chord := tasks.NewChord(group, &multiplyTask1)
+	group, _ = tasks.NewGroup(&addTask0, &addTask1, &addTask2)
+	chord, _ := tasks.NewChord(group, &multiplyTask1)
 	chordAsyncResult, err := server.SendChordWithContext(ctx, chord, 10)
 	if err != nil {
 		return fmt.Errorf("could not send chord: %s", err)
@@ -382,7 +382,7 @@ func send() error {
 	// Now let's try chaining task results
 	initTasks()
 	log.Logger.Info("Chain of tasks:")
-	chain := tasks.NewChain(&addTask0, &addTask1, &addTask2, &multiplyTask0)
+	chain, _ := tasks.NewChain(&addTask0, &addTask1, &addTask2, &multiplyTask0)
 	chainAsyncResult, err := server.SendChainWithContext(ctx, chain)
 	if err != nil {
 		return fmt.Errorf("could not send chain: %s", err)

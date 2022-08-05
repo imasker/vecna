@@ -16,3 +16,4 @@ redis:
   delayed_tasks_key: delayed_tasks_key
   master_name: master_name
 no_unix_signals: true
+default_send_concurrency: 100

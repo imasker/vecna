@@ -31,4 +31,5 @@ func TestNewFromYaml(t *testing.T) {
 	assert.Equal(t, "master_name", cnf.Redis.MasterName)
 
 	assert.Equal(t, true, cnf.NoUnixSignals)
+	assert.Equal(t, 100, cnf.DefaultSendConcurrency)
 }

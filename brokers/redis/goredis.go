@@ -16,6 +16,7 @@ import (
 	"vecna/config"
 	"vecna/log"
 	"vecna/tasks"
+	"vecna/utils"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -357,43 +358,37 @@ func (b *Broker) nextDelayedTask(key string) (result []byte, err error) {
 	}
 	pollPeriod := time.Duration(pollPeriodMilliseconds) * time.Millisecond
 
-	for {
-		// Space out queries to ZSET so we don't bombard redis
-		// server with relentless ZRANGEBYSCOREs
-		time.Sleep(pollPeriod)
-		watchFunc := func(tx *redis.Tx) error {
-			now := time.Now().UTC().UnixNano()
+	// Space out queries to ZSET so we don't bombard redis
+	// server with relentless ZRANGEBYSCOREs
+	time.Sleep(pollPeriod)
+	watchFunc := func(tx *redis.Tx) error {
+		now := time.Now().UTC().UnixNano()
 
-			// https://reids.io/commands/zrangebyscore
-			ctx := context.Background()
-			// todo: use zrangebyscore instead of zrevrangebyscore to make sure FIFO
-			items, err = tx.ZRevRangeByScore(ctx, key, &redis.ZRangeBy{
-				Min: "0", Max: strconv.FormatInt(now, 10), Offset: 0, Count: 1,
-			}).Result()
-			if err != nil {
-				return err
-			}
-			if len(items) != 1 {
-				return redis.Nil
-			}
-
-			// only return the first zrange value if there are no other changes in this key
-			// to make sure a delayed task would only be consumed once
-			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.ZRem(ctx, key, items[0])
-				result = []byte(items[0])
-				return nil
-			})
-
+		// https://reids.io/commands/zrangebyscore
+		ctx := context.Background()
+		// todo: use zrangebyscore instead of zrevrangebyscore to make sure FIFO
+		items, err = tx.ZRangeByScore(ctx, key, &redis.ZRangeBy{
+			Min: "0", Max: strconv.FormatInt(now, 10), Offset: 0, Count: 1,
+		}).Result()
+		if err != nil {
 			return err
 		}
-
-		if err = b.client.Watch(context.Background(), watchFunc, key); err != nil {
-			return
-		} else {
-			break
+		if len(items) != 1 {
+			return redis.Nil
 		}
+
+		// only return the first zrange value if there are no other changes in this key
+		// to make sure a delayed task would only be consumed once
+		_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+			pipe.ZRem(ctx, key, items[0])
+			result = []byte(items[0])
+			return nil
+		})
+
+		return err
 	}
+
+	err = b.client.Watch(context.Background(), watchFunc, key)
 
 	return result, err
 }
@@ -404,4 +399,100 @@ func getQueue(config *config.Config, taskProcessor iface.TaskProcessor) string {
 		return config.DefaultQueue
 	}
 	return customQueue
+}
+
+// PublishPeriodicTask places a periodic task on the default queue
+func (b *Broker) PublishPeriodicTask(signature *tasks.Signature, group *tasks.Group, chord *tasks.Chord) error {
+	queue := b.GetConfig().Redis.PeriodicTasksKey
+
+	var value interface{}
+	var code string
+	if signature != nil {
+		if signature.ID == "" {
+			signature.ID = utils.GenerateID("task_")
+		}
+		if signature.Code == "" {
+			signature.Code = signature.ID
+		}
+		code = signature.Code
+		value = signature
+	} else if group != nil {
+		code = group.Tasks[0].Code
+		value = group
+	} else if chord != nil {
+		code = chord.Group.Tasks[0].Code
+		value = chord
+	}
+	msg, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("json marshal error: %s", err)
+	}
+
+	err = b.client.HSet(context.Background(), queue, code, msg).Err()
+
+	return err
+}
+
+// GetPeriodicTask get original periodic task from redis
+func (b *Broker) GetPeriodicTask(code string) (*tasks.Signature, error) {
+	queue := b.GetConfig().Redis.PeriodicTasksKey
+	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var signature tasks.Signature
+	err = json.Unmarshal(result, &signature)
+	// refresh taskID
+	signature.ID = utils.GenerateID("task_")
+	return &signature, err
+}
+
+// GetPeriodicGroup get original periodic group from redis
+func (b *Broker) GetPeriodicGroup(code string) (*tasks.Group, error) {
+	queue := b.GetConfig().Redis.PeriodicTasksKey
+	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var group tasks.Group
+	err = json.Unmarshal(result, &group)
+	// refresh taskID and groupID
+	groupID := utils.GenerateID("group_")
+	group.GroupID = groupID
+	for _, signature := range group.Tasks {
+		signature.ID = utils.GenerateID("task_")
+		signature.GroupID = groupID
+	}
+	return &group, err
+}
+
+// GetPeriodicChord get original periodic chord from redis
+func (b *Broker) GetPeriodicChord(code string) (*tasks.Chord, error) {
+	queue := b.GetConfig().Redis.PeriodicTasksKey
+	result, err := b.client.HGet(context.Background(), queue, code).Bytes()
+	if err != nil {
+		return nil, err
+	}
+	var chord tasks.Chord
+	err = json.Unmarshal(result, &chord)
+	// refresh taskID and groupID
+	groupID := utils.GenerateID("group_")
+	chord.Callback.ID = utils.GenerateID("chord_")
+	chord.Group.GroupID = groupID
+	for _, signature := range chord.Group.Tasks {
+		signature.ID = utils.GenerateID("task_")
+		signature.GroupID = groupID
+	}
+	return &chord, err
+}
+
+// RemovePeriodicTask remove periodic task from periodic_tasks queue and delayed_tasks queue
+func (b *Broker) RemovePeriodicTask(code string) error {
+	queue := b.GetConfig().Redis.PeriodicTasksKey
+	return b.client.HDel(context.Background(), queue, code).Err()
+}
+
+// RemoveDelayedTask remove periodic task from periodic_tasks queue and delayed_tasks queue
+func (b *Broker) RemoveDelayedTask(encodedSignatures ...string) error {
+	return nil
 }
