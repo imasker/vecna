@@ -36,21 +36,12 @@ type Broker struct {
 }
 
 // New creates new Broker instance
-func New(cnf *config.Config, addrs []string, db int) iface.Broker {
+func New(cnf *config.Config) (iface.Broker, error) {
 	b := &Broker{Broker: common.NewBroker(cnf)}
 
-	var password string
-	parts := strings.Split(addrs[0], "@")
-	if len(parts) >= 2 {
-		// with password
-		password = strings.Join(parts[:len(parts)-1], "@")
-		addrs[0] = parts[len(parts)-1]
-	}
-
-	opt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: password,
+	opt, err := utils.ParseRedisURL(cnf.Broker)
+	if err != nil {
+		return nil, err
 	}
 	if cnf.Redis != nil {
 		opt.MasterName = cnf.Redis.MasterName
@@ -67,7 +58,7 @@ func New(cnf *config.Config, addrs []string, db int) iface.Broker {
 	} else {
 		b.redisDelayedTasksCacheKey = defaultRedisDelayedTasksCacheKey
 	}
-	return b
+	return b, nil
 }
 
 // StartConsuming enters a loop and waits for incoming messages

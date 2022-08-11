@@ -3,9 +3,9 @@ package redis
 import (
 	"errors"
 	"strconv"
-	"strings"
 	"time"
 	"vecna/config"
+	"vecna/utils"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -20,32 +20,22 @@ type Lock struct {
 	interval time.Duration
 }
 
-func New(cnf *config.Config, addrs []string, db, retries int) Lock {
+func New(cnf *config.Config, retries int) (*Lock, error) {
 	if retries <= 0 {
-		return Lock{}
+		return nil, errors.New("retries must >= 0")
 	}
-	lock := Lock{retries: retries}
+	lock := &Lock{retries: retries}
 
-	var password string
-
-	parts := strings.Split(addrs[0], "@")
-	if len(parts) >= 2 {
-		password = strings.Join(parts[:len(parts)-1], "@")
-		addrs[0] = parts[len(parts)-1] // addr is the last one without @
-	}
-
-	opt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: password,
+	opt, err := utils.ParseRedisURL(cnf.Lock)
+	if err != nil {
+		return nil, err
 	}
 	if cnf.Redis != nil {
 		opt.MasterName = cnf.Redis.MasterName
 	}
 
 	lock.client = redis.NewUniversalClient(opt)
-
-	return lock
+	return lock, nil
 }
 
 func (l Lock) LockWithRetries(key string, unixTsToExpireNs int64) error {

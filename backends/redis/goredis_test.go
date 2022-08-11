@@ -1,7 +1,7 @@
 package redis_test
 
 import (
-	"strings"
+	"fmt"
 	"testing"
 	"vecna/backends/iface"
 	"vecna/backends/redis"
@@ -34,7 +34,14 @@ func teardown() {
 }
 
 func getRedis() iface.Backend {
-	backend := redis.New(new(config.Config), strings.Split(redisServer.Addr(), ","), 0)
+	redisUrl := fmt.Sprintf("redis://%s", redisServer.Addr())
+	cnf := &config.Config{
+		Broker:        redisUrl,
+		Lock:          redisUrl,
+		ResultBackend: redisUrl,
+		Redis:         new(config.RedisConfig),
+	}
+	backend, _ := redis.New(cnf)
 	return backend
 }
 

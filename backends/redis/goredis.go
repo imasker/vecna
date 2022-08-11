@@ -11,6 +11,7 @@ import (
 	"vecna/config"
 	"vecna/log"
 	"vecna/tasks"
+	"vecna/utils"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redsync/redsync/v4"
@@ -25,22 +26,13 @@ type Backend struct {
 }
 
 // New creates Backend instance
-func New(cnf *config.Config, addrs []string, db int) iface.Backend {
+func New(cnf *config.Config) (iface.Backend, error) {
 	b := &Backend{
 		Backend: common.NewBackend(cnf),
 	}
-	parts := strings.Split(addrs[0], "@")
-	var password string
-	if len(parts) >= 2 {
-		// with password
-		password = strings.Join(parts[:len(parts)-1], "@")
-		addrs[0] = parts[len(parts)-1] // addr is the last one without @
-	}
-
-	opt := &redis.UniversalOptions{
-		Addrs:    addrs,
-		DB:       db,
-		Password: password,
+	opt, err := utils.ParseRedisURL(cnf.ResultBackend)
+	if err != nil {
+		return nil, err
 	}
 	if cnf.Redis != nil {
 		opt.MasterName = cnf.Redis.MasterName
@@ -48,7 +40,7 @@ func New(cnf *config.Config, addrs []string, db int) iface.Backend {
 
 	b.client = redis.NewUniversalClient(opt)
 	b.redsync = redsync.New(redsyncgoredis.NewPool(b.client))
-	return b
+	return b, nil
 }
 
 // InitGroup creates and saves a group meta data object

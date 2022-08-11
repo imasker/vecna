@@ -1,7 +1,8 @@
-package utils
+package utils_test
 
 import (
 	"testing"
+	"vecna/utils"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,7 @@ func TestDeepCopy(t *testing.T) {
 	var dst = new(s)
 	var src = s{1.0, 1, []int{1, 2, 3}, &d, map[string]int{"a": 1}}
 
-	err := DeepCopy(dst, &src)
+	err := utils.DeepCopy(dst, &src)
 	src.A = 2
 
 	assert.NoError(t, err)
