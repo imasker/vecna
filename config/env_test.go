@@ -35,11 +35,7 @@ func TestNewFromEnvironment(t *testing.T) {
 	assert.Equal(t, "default_queue", cnf.DefaultQueue)
 	assert.Equal(t, "result_backend", cnf.ResultBackend)
 	assert.Equal(t, 123456, cnf.ResultsExpireIn)
-	assert.Equal(t, 3, cnf.Redis.MaxIdle)
-	assert.Equal(t, 250, cnf.Redis.IdleTimeout)
-	assert.Equal(t, 16, cnf.Redis.ReadTimeout)
-	assert.Equal(t, 16, cnf.Redis.WriteTimeout)
-	assert.Equal(t, 16, cnf.Redis.ConnectTimeout)
+
 	assert.Equal(t, 900, cnf.Redis.NormalTasksPollPeriod)
 	assert.Equal(t, 600, cnf.Redis.DelayedTasksPollPeriod)
 	assert.Equal(t, 100, cnf.DefaultSendConcurrency)
