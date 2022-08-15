@@ -23,7 +23,7 @@ import (
 
 // Server is the main Vecna object and stores all configuration
 // All the tasks workers process are registered against the server
-// todo: a simple way to handle periodical task is sending another delayed task everytime the task finished
+// a simple way to handle periodical task is sending another delayed task everytime the task finished
 type Server struct {
 	config            *config.Config
 	registeredTasks   *sync.Map
@@ -33,8 +33,31 @@ type Server struct {
 	prePublishHandler func(signature *tasks.Signature)
 }
 
-// NewServer creates Server instance
-func NewServer(cnf *config.Config, brokerServer brokersiface.Broker, backendServer backendsiface.Backend, lock locksiface.Lock) *Server {
+// NewServer creates Server instance with config
+func NewServer(cnf *config.Config) (*Server, error) {
+	broker, err := BrokerFactory(cnf)
+	if err != nil {
+		return nil, err
+	}
+
+	backend, err := BackendFactory(cnf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Init lock
+	lock, err := LockFactory(cnf)
+	if err != nil {
+		return nil, err
+	}
+
+	srv := NewServerWithBrokerBackendLock(cnf, broker, backend, lock)
+
+	return srv, nil
+}
+
+// NewServerWithBrokerBackendLock creates Server instance with broker, backend and lock
+func NewServerWithBrokerBackendLock(cnf *config.Config, brokerServer brokersiface.Broker, backendServer backendsiface.Backend, lock locksiface.Lock) *Server {
 	srv := &Server{
 		config:          cnf,
 		registeredTasks: new(sync.Map),

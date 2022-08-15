@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 	"vecna"
 	"vecna/config"
@@ -64,7 +63,11 @@ func main() {
 }
 
 func startServer() (*vecna.Server, error) {
+	redisUrl := fmt.Sprintf("redis://%s", redisServer.Addr())
 	cnf := &config.Config{
+		Broker:          redisUrl,
+		Lock:            redisUrl,
+		ResultBackend:   redisUrl,
 		DefaultQueue:    "vecna_tasks",
 		ResultsExpireIn: 3600,
 		Redis: &config.RedisConfig{
@@ -79,10 +82,10 @@ func startServer() (*vecna.Server, error) {
 	}
 
 	// Create server instance
-	backend := redisbackend.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	broker := redisbroker.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	lock := redislock.New(cnf, strings.Split(redisServer.Addr(), ","), 0, 3)
-	server := vecna.NewServer(cnf, broker, backend, lock)
+	backend, _ := redisbackend.New(cnf)
+	broker, _ := redisbroker.New(cnf)
+	lock, _ := redislock.New(cnf, 3)
+	server := vecna.NewServerWithBrokerBackendLock(cnf, broker, backend, lock)
 
 	// Register tasks
 	tasksMap := map[string]interface{}{

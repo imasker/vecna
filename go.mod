@@ -6,7 +6,6 @@ require (
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-redsync/redsync/v4 v4.5.1
-	github.com/gomodule/redigo v1.8.8
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/opentracing/opentracing-go v1.2.0
@@ -22,6 +21,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/gomodule/redigo v1.8.8 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

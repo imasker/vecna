@@ -1,17 +1,14 @@
 package integration_tests
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
 	"vecna"
-	backends "vecna/backends/redis"
-	brokers "vecna/brokers/redis"
 	"vecna/config"
-	locks "vecna/locks/redis"
 	"vecna/tasks"
 )
 
@@ -19,7 +16,11 @@ func TestWorkerOnlyConsumeRegisteredTask(t *testing.T) {
 	setup()
 	defer teardown()
 
+	redisUrl := fmt.Sprintf("redis://%s", redisServer.Addr())
 	cnf := &config.Config{
+		Broker:          redisUrl,
+		Lock:            redisUrl,
+		ResultBackend:   redisUrl,
 		DefaultQueue:    "vecna_tasks",
 		ResultsExpireIn: 3600,
 		Redis: &config.RedisConfig{
@@ -33,15 +34,8 @@ func TestWorkerOnlyConsumeRegisteredTask(t *testing.T) {
 		},
 	}
 
-	backend := backends.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	broker := brokers.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	lock := locks.New(cnf, strings.Split(redisServer.Addr(), ","), 0, 3)
-	server1 := vecna.NewServer(cnf, broker, backend, lock)
-
-	backend = backends.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	broker = brokers.New(cnf, strings.Split(redisServer.Addr(), ","), 0)
-	lock = locks.New(cnf, strings.Split(redisServer.Addr(), ","), 0, 3)
-	server2 := vecna.NewServer(cnf, broker, backend, lock)
+	server1, _ := vecna.NewServer(cnf)
+	server2, _ := vecna.NewServer(cnf)
 
 	server1.RegisterTask("add", func(args ...int64) (int64, error) {
 		sum := int64(0)

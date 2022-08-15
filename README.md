@@ -241,19 +241,13 @@ A Machinery library must be instantiated before use. The way this is done is by 
 ```go
 import (
   "github.com/imasker/vecna"
-  backends "github.com/imasker/vecna/backends/redis"
-  brokers "github.com/imasker/vecna/brokers/redis"
   "github.com/imasker/vecna/config"
-  locks "github.com/imasker/vecna/locks/redis"
 )
 
 cnf, err := config.NewFromYaml("config.yml", false)
-// handle err
-backend := backends.New(cnf, []string{"redis://password@localhost:6379"}, 0)
-broker := brokers.New(cnf, []string{"redis://password@localhost:6379"}, 0)
-lock := locks.New(cnf, []string{"redis://password@localhost:6379"}, 0, 3)
-server, err := vecna.NewServer(cnf, broker, backend, lock)
-// handle err
+// todo: handle err
+server, err := vecna.NewServer(cnf)
+// todo: handle err
 ```
 
 ### Workers
