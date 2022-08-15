@@ -1,9 +1,6 @@
 package config
 
 import (
-	"crypto/tls"
-	"fmt"
-	"strings"
 	"time"
 )
 
@@ -36,24 +33,17 @@ var (
 
 // Config holds all configuration for our program
 type Config struct {
-	Broker                  string       `yaml:"broker" envconfig:"BROKER"`
-	Lock                    string       `yaml:"lock" envconfig:"LOCK"`
-	MultipleBrokerSeparator string       `yaml:"multiple_broker_separator" envconfig:"MULTIPLE_BROKEN_SEPARATOR"`
-	DefaultQueue            string       `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
-	ResultBackend           string       `yaml:"result_backend" envconfig:"RESULT_BACKEND"`
-	ResultsExpireIn         int          `yaml:"results_expire_in" envconfig:"RESULTS_EXPIRE_IN"`
-	Redis                   *RedisConfig `yaml:"redis"`
-	TLSConfig               *tls.Config
+	Broker        string `yaml:"broker" envconfig:"BROKER"`
+	Lock          string `yaml:"lock" envconfig:"LOCK"`
+	DefaultQueue  string `yaml:"default_queue" envconfig:"DEFAULT_QUEUE"`
+	ResultBackend string `yaml:"result_backend" envconfig:"RESULT_BACKEND"`
+	// todo: make sure that groupMeta and taskState won't be deleted when they are required
+	ResultsExpireIn int          `yaml:"results_expire_in" envconfig:"RESULTS_EXPIRE_IN"`
+	Redis           *RedisConfig `yaml:"redis"`
 	// NoUnixSignals - when set disables signal handling in vecna
 	NoUnixSignals          bool `yaml:"no_unix_signals" envconfig:"NO_UNIX_SIGNALS"`
 	DefaultSendConcurrency int  `yaml:"default_send_concurrency" envconfig:"DEFAULT_SEND_CONCURRENCY"`
 }
-
-// QueueBindingArgs arguments which are used when binding to the exchange
-type QueueBindingArgs map[string]interface{}
-
-// QueueDeclareArgs arguments which are used when declaring a queue
-type QueueDeclareArgs map[string]interface{}
 
 // RedisConfig ...
 type RedisConfig struct {
@@ -107,20 +97,4 @@ type RedisConfig struct {
 
 	// MasterName specifies a redis master name in order to configure a sentinel-backed redis FailoverClient
 	MasterName string `yaml:"master_name" envconfig:"REDIS_MASTER_NAME"`
-}
-
-// Decode from yaml to map (any field whose type or pointer-to-type implements
-// envconfig.Decoder can control its own deserialization)
-func (args *QueueBindingArgs) Decode(value string) error {
-	pairs := strings.Split(value, ",")
-	mp := make(map[string]interface{}, len(pairs))
-	for _, pair := range pairs {
-		kvpair := strings.Split(pair, ":")
-		if len(kvpair) != 2 {
-			return fmt.Errorf("invalid map item: %q", pair)
-		}
-		mp[kvpair[0]] = kvpair[1]
-	}
-	*args = QueueBindingArgs(mp)
-	return nil
 }

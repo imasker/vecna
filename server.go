@@ -217,6 +217,10 @@ func (s *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, s
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendGroup", tracing.ProducerOption(), tracing.VecnaTag, tracing.WorkflowGroupTag)
 	defer span.Finish()
 
+	if sendConcurrency < 0 {
+		sendConcurrency = s.config.DefaultSendConcurrency
+	}
+
 	tracing.AnnotateSpanWithGroupInfo(span, group, sendConcurrency)
 
 	// Make sure result backend is defined
@@ -286,14 +290,18 @@ func (s *Server) SendGroupWithContext(ctx context.Context, group *tasks.Group, s
 }
 
 // SendGroup triggers a group of parallel tasks
-func (s *Server) SendGroup(group *tasks.Group, sendConcurreny int) ([]*result.AsyncResult, error) {
-	return s.SendGroupWithContext(context.Background(), group, sendConcurreny)
+func (s *Server) SendGroup(group *tasks.Group, sendConcurrency int) ([]*result.AsyncResult, error) {
+	return s.SendGroupWithContext(context.Background(), group, sendConcurrency)
 }
 
 // SendChordWithContext will inject the trace context in all the signature headers before publishing it
 func (s *Server) SendChordWithContext(ctx context.Context, chord *tasks.Chord, sendConcurrency int) (*result.ChordAsyncResult, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "SendChord", tracing.ProducerOption(), tracing.VecnaTag, tracing.WorkflowChordTag)
 	defer span.Finish()
+
+	if sendConcurrency < 0 {
+		sendConcurrency = s.config.DefaultSendConcurrency
+	}
 
 	tracing.AnnotateSpanWithChordInfo(span, chord, sendConcurrency)
 

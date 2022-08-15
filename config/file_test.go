@@ -31,5 +31,11 @@ func TestNewFromYaml(t *testing.T) {
 	assert.Equal(t, "master_name", cnf.Redis.MasterName)
 
 	assert.Equal(t, true, cnf.NoUnixSignals)
+	assert.Equal(t, 200, cnf.DefaultSendConcurrency)
+
+	cnf, err = config.NewFromYaml("test2.yml", false)
+	if err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, 100, cnf.DefaultSendConcurrency)
 }

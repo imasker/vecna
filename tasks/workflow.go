@@ -50,6 +50,7 @@ func NewChain(signatures ...*Signature) (*Chain, error) {
 
 	for i := len(signatures) - 1; i > 0; i-- {
 		if i > 0 {
+			// todo: insert task to the head of the previous task's Onsuccess instead of init the Onsuccess
 			signatures[i-1].OnSuccess = []*Signature{signatures[i]}
 		}
 	}
