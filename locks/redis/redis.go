@@ -4,10 +4,11 @@ import (
 	"errors"
 	"strconv"
 	"time"
-	"vecna/config"
-	"vecna/utils"
 
 	"github.com/go-redis/redis/v8"
+
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/utils"
 )
 
 var (

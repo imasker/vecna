@@ -2,10 +2,11 @@ package vecna_test
 
 import (
 	"testing"
-	"vecna"
-	"vecna/config"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna"
+	"github.com/imasker/vecna/config"
 )
 
 const redisUrl = "redis://:xxx@redis.com/0"

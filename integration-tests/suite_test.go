@@ -7,10 +7,11 @@ import (
 	"sort"
 	"testing"
 	"time"
-	"vecna"
-	"vecna/tasks"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna"
+	"github.com/imasker/vecna/tasks"
 )
 
 type ascendingInt64s []int64

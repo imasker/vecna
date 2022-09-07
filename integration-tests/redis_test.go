@@ -12,9 +12,9 @@ import (
 	"github.com/alicebob/miniredis"
 	"github.com/stretchr/testify/assert"
 
-	"vecna"
-	"vecna/config"
-	"vecna/tasks"
+	"github.com/imasker/vecna"
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/tasks"
 )
 
 var redisServer *miniredis.Miniredis

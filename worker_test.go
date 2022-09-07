@@ -2,9 +2,10 @@ package vecna_test
 
 import (
 	"testing"
-	"vecna"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna"
 )
 
 func TestRedactURL(t *testing.T) {

@@ -8,17 +8,17 @@ import (
 	"sync"
 	"time"
 
+	backendsiface "github.com/imasker/vecna/backends/iface"
+	"github.com/imasker/vecna/backends/result"
+	brokersiface "github.com/imasker/vecna/brokers/iface"
+	"github.com/imasker/vecna/config"
+	locksiface "github.com/imasker/vecna/locks/iface"
+	"github.com/imasker/vecna/tasks"
+	"github.com/imasker/vecna/tracing"
+	"github.com/imasker/vecna/utils"
+
 	"github.com/opentracing/opentracing-go"
 	"github.com/robfig/cron/v3"
-
-	backendsiface "vecna/backends/iface"
-	"vecna/backends/result"
-	brokersiface "vecna/brokers/iface"
-	"vecna/config"
-	locksiface "vecna/locks/iface"
-	"vecna/tasks"
-	"vecna/tracing"
-	"vecna/utils"
 )
 
 // Server is the main Vecna object and stores all configuration

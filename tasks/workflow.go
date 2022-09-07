@@ -1,7 +1,7 @@
 package tasks
 
 import (
-	"vecna/utils"
+	"github.com/imasker/vecna/utils"
 )
 
 // Chain creates a chain of tasks to be executed one after another

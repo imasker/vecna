@@ -4,7 +4,8 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"vecna/log"
+
+	"github.com/imasker/vecna/log"
 )
 
 // Add ...

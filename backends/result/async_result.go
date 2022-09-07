@@ -4,8 +4,9 @@ import (
 	"errors"
 	"reflect"
 	"time"
-	"vecna/backends/iface"
-	"vecna/tasks"
+
+	"github.com/imasker/vecna/backends/iface"
+	"github.com/imasker/vecna/tasks"
 )
 
 var (

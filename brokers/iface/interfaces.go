@@ -2,8 +2,9 @@ package iface
 
 import (
 	"context"
-	"vecna/config"
-	"vecna/tasks"
+
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/tasks"
 )
 
 // Broker - a common interface for all brokers

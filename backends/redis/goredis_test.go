@@ -3,14 +3,14 @@ package redis_test
 import (
 	"fmt"
 	"testing"
-	"vecna/backends/iface"
-	"vecna/backends/redis"
-	"vecna/config"
-	"vecna/tasks"
-
-	"github.com/stretchr/testify/assert"
 
 	"github.com/alicebob/miniredis"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/backends/iface"
+	"github.com/imasker/vecna/backends/redis"
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/tasks"
 )
 
 var redisServer *miniredis.Miniredis

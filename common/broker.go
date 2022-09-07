@@ -3,11 +3,12 @@ package common
 import (
 	"errors"
 	"sync"
-	"vecna/brokers/iface"
-	"vecna/config"
-	"vecna/log"
-	"vecna/retry"
-	"vecna/tasks"
+
+	"github.com/imasker/vecna/brokers/iface"
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/log"
+	"github.com/imasker/vecna/retry"
+	"github.com/imasker/vecna/tasks"
 )
 
 type registeredTaskNames struct {

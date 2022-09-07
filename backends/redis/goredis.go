@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
-	"vecna/backends/iface"
-	"vecna/common"
-	"vecna/config"
-	"vecna/log"
-	"vecna/tasks"
-	"vecna/utils"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redsync/redsync/v4"
 	redsyncgoredis "github.com/go-redsync/redsync/v4/redis/goredis/v8"
+
+	"github.com/imasker/vecna/backends/iface"
+	"github.com/imasker/vecna/common"
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/log"
+	"github.com/imasker/vecna/tasks"
+	"github.com/imasker/vecna/utils"
 )
 
 // Backend represents a Redis result backend with go-redis

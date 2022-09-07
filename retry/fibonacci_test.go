@@ -2,9 +2,10 @@ package retry_test
 
 import (
 	"testing"
-	"vecna/retry"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/retry"
 )
 
 func TestFibonacci(t *testing.T) {

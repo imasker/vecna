@@ -2,9 +2,10 @@ package utils_test
 
 import (
 	"testing"
-	"vecna/utils"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/utils"
 )
 
 func TestDeepCopy(t *testing.T) {

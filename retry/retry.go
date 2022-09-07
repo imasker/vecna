@@ -3,7 +3,8 @@ package retry
 import (
 	"fmt"
 	"time"
-	"vecna/log"
+
+	"github.com/imasker/vecna/log"
 )
 
 // Closure - a useful closure we can use when there is a problem

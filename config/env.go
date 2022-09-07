@@ -3,7 +3,7 @@ package config
 import (
 	"github.com/kelseyhightower/envconfig"
 
-	"vecna/log"
+	"github.com/imasker/vecna/log"
 )
 
 // NewFromEnvironment creates a config object from environment variables

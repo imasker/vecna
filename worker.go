@@ -9,12 +9,13 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"vecna/log"
-	"vecna/retry"
-	"vecna/tasks"
-	"vecna/tracing"
 
 	"github.com/opentracing/opentracing-go"
+
+	"github.com/imasker/vecna/log"
+	"github.com/imasker/vecna/retry"
+	"github.com/imasker/vecna/tasks"
+	"github.com/imasker/vecna/tracing"
 )
 
 // Worker represents a single worker process

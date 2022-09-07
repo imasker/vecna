@@ -5,22 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"vecna"
-	"vecna/config"
-	"vecna/example/tracers"
-	"vecna/log"
-	"vecna/tasks"
-	"vecna/utils"
 
 	"github.com/alicebob/miniredis"
 	"github.com/opentracing/opentracing-go"
 	opentracinglog "github.com/opentracing/opentracing-go/log"
 	"github.com/urfave/cli"
 
-	redisbackend "vecna/backends/redis"
-	redisbroker "vecna/brokers/redis"
-	exampletasks "vecna/example/tasks"
-	redislock "vecna/locks/redis"
+	"github.com/imasker/vecna"
+	redisbackend "github.com/imasker/vecna/backends/redis"
+	redisbroker "github.com/imasker/vecna/brokers/redis"
+	"github.com/imasker/vecna/config"
+	exampletasks "github.com/imasker/vecna/example/tasks"
+	"github.com/imasker/vecna/example/tracers"
+	redislock "github.com/imasker/vecna/locks/redis"
+	"github.com/imasker/vecna/log"
+	"github.com/imasker/vecna/tasks"
+	"github.com/imasker/vecna/utils"
 )
 
 var (

@@ -2,9 +2,10 @@ package config_test
 
 import (
 	"testing"
-	"vecna/config"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/config"
 )
 
 func TestNewFromYaml(t *testing.T) {

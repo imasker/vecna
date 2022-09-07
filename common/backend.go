@@ -1,6 +1,6 @@
 package common
 
-import "vecna/config"
+import "github.com/imasker/vecna/config"
 
 // Backend represents a base backend structure
 type Backend struct {

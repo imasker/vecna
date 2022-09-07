@@ -1,6 +1,6 @@
 package iface
 
-import "vecna/tasks"
+import "github.com/imasker/vecna/tasks"
 
 // Backend - a common interface for all result backends
 type Backend interface {

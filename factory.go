@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	backendiface "vecna/backends/iface"
-	redisbackend "vecna/backends/redis"
-	brokeriface "vecna/brokers/iface"
-	redisbroker "vecna/brokers/redis"
-	"vecna/config"
-	lockiface "vecna/locks/iface"
-	redislock "vecna/locks/redis"
+	backendiface "github.com/imasker/vecna/backends/iface"
+	redisbackend "github.com/imasker/vecna/backends/redis"
+	brokeriface "github.com/imasker/vecna/brokers/iface"
+	redisbroker "github.com/imasker/vecna/brokers/redis"
+	"github.com/imasker/vecna/config"
+	lockiface "github.com/imasker/vecna/locks/iface"
+	redislock "github.com/imasker/vecna/locks/redis"
 )
 
 // BrokerFactory creates a new object of iface.Broker

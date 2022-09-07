@@ -3,11 +3,12 @@ package vecna_test
 import (
 	"fmt"
 	"testing"
-	"vecna"
-	"vecna/config"
 
 	"github.com/alicebob/miniredis"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna"
+	"github.com/imasker/vecna/config"
 )
 
 var redisServer *miniredis.Miniredis

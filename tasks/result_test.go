@@ -2,9 +2,10 @@ package tasks_test
 
 import (
 	"testing"
-	"vecna/tasks"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/tasks"
 )
 
 func TestReflectTaskResults(t *testing.T) {

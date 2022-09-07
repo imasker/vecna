@@ -8,7 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 
-	"vecna/utils"
+	"github.com/imasker/vecna/utils"
 )
 
 func TestRedisParseUrl(t *testing.T) {

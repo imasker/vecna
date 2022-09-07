@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"vecna"
-	"vecna/config"
-	"vecna/tasks"
+	"github.com/imasker/vecna"
+	"github.com/imasker/vecna/config"
+	"github.com/imasker/vecna/tasks"
 )
 
 func TestWorkerOnlyConsumeRegisteredTask(t *testing.T) {

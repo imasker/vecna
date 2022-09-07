@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"vecna/log"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/imasker/vecna/log"
 )
 
 // NewFromYaml creates a config object from YAML file

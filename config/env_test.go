@@ -5,9 +5,10 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"vecna/config"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/imasker/vecna/config"
 )
 
 func TestNewFromEnvironment(t *testing.T) {

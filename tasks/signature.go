@@ -3,9 +3,10 @@ package tasks
 import (
 	"fmt"
 	"time"
-	"vecna/utils"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
+
+	"github.com/imasker/vecna/utils"
 )
 
 // Arg represents a single argument passed to in vocation fo a task
