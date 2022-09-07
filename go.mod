@@ -1,4 +1,4 @@
-module vecna
+module github.com/imasker/vecna
 
 go 1.17
 
