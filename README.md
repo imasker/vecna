@@ -221,7 +221,7 @@ You can define a custom logger by implementing the following interface:
 type LoggerInterface interface {
 Info(format string, a ...interface{})
 Debug(format string, a ...interface{})
-Warning(format string, a ...interface{})
+Warn(format string, a ...interface{})
 Error(format string, a ...interface{})
 Fatal(format string, a ...interface{})
 Panic(format string, a ...interface{})

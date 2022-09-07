@@ -17,7 +17,7 @@ var Closure = func() func(chan int) {
 			durationString := fmt.Sprintf("%ds", retryIn)
 			duration, _ := time.ParseDuration(durationString)
 
-			log.Logger.Warning("Retrying in %d seconds", retryIn)
+			log.Logger.Warn("Retrying in %d seconds", retryIn)
 
 			select {
 			case <-stopChan:

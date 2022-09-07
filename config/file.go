@@ -29,7 +29,7 @@ func NewFromYaml(cnfPath string, keepReloading bool) (*Config, error) {
 				// Attempt to reload the config
 				newCnf, newErr := fromFile(cnfPath)
 				if newErr != nil {
-					log.Logger.Warning("Failed to reload config from file %s: %v", cnfPath, newErr)
+					log.Logger.Warn("Failed to reload config from file %s: %v", cnfPath, newErr)
 					continue
 				}
 
