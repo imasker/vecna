@@ -72,7 +72,7 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 				if worker.errorHandler != nil {
 					worker.errorHandler(nil, err)
 				} else {
-					log.Logger.Warning("Broker failed with error: %s", err)
+					log.Logger.Warn("Broker failed with error: %s", err)
 				}
 			} else {
 				signalWG.Wait()
@@ -89,12 +89,12 @@ func (worker *Worker) LaunchAsync(errorsChan chan<- error) {
 		// Goroutine handle SIGINT and SIGTERM signals
 		go func() {
 			for s := range sig {
-				log.Logger.Warning("Signal received: %v", s)
+				log.Logger.Warn("Signal received: %v", s)
 				signalsReceived++
 
 				if signalsReceived < 2 {
 					// After first Ctrl+C start quitting the worker gracefully
-					log.Logger.Warning("Waiting for running tasks to finish before shutting down")
+					log.Logger.Warn("Waiting for running tasks to finish before shutting down")
 					signalWG.Add(1)
 					go func() {
 						worker.Quit()
@@ -211,7 +211,7 @@ func (worker *Worker) taskRetry(signature *tasks.Signature) error {
 	eta := time.Now().UTC().Add(time.Second * time.Duration(signature.RetryTimeout))
 	signature.ETA = &eta
 
-	log.Logger.Warning("Task %s failed. Going to retry in %d seconds.", signature.ID, signature.RetryTimeout)
+	log.Logger.Warn("Task %s failed. Going to retry in %d seconds.", signature.ID, signature.RetryTimeout)
 
 	// Send the task back to the queue
 	_, err := worker.server.SendTask(signature)
@@ -229,7 +229,7 @@ func (worker *Worker) retryTaskIn(signature *tasks.Signature, retryIn time.Durat
 	eta := time.Now().UTC().Add(retryIn)
 	signature.ETA = &eta
 
-	log.Logger.Warning("Task %s failed. Going to retry in %.0f seconds.", signature.ID, retryIn.Seconds())
+	log.Logger.Warn("Task %s failed. Going to retry in %.0f seconds.", signature.ID, retryIn.Seconds())
 
 	// Send the task back to the queue
 	_, err := worker.server.SendTask(signature)
@@ -248,7 +248,7 @@ func (worker *Worker) taskSucceeded(signature *tasks.Signature, taskResults []*t
 	var debugResults = "[]"
 	results, err := tasks.ReflectTaskResults(taskResults)
 	if err != nil {
-		log.Logger.Warning("%s", err)
+		log.Logger.Warn("%s", err)
 	} else {
 		debugResults = tasks.HumanReadableResults(results)
 	}
