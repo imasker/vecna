@@ -3,6 +3,10 @@ package vecna_test
 import (
 	"fmt"
 	"testing"
+	"time"
+
+	"github.com/imasker/vecna/tasks"
+	"github.com/robfig/cron/v3"
 
 	"github.com/alicebob/miniredis"
 	"github.com/stretchr/testify/assert"
@@ -116,4 +120,46 @@ func TestServer_NewCustomQueueWorker(t *testing.T) {
 	assert.NoError(t, err)
 	server.NewCustomQueueWorker("test_customqueueworker", 1, "test_queue")
 	assert.NoError(t, nil)
+}
+
+func TestServer_SendPeriodicTask(t *testing.T) {
+	setup()
+	defer teardown()
+
+	server, err := getTestServer()
+	assert.NoError(t, err)
+
+	now := time.Now()
+	twoHours := now.Add(2 * time.Hour).UTC()
+	task := &tasks.Signature{
+		Name: "test",
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: "xxx",
+			},
+		},
+	}
+	spec := "0 * * * *"
+	schedule, _ := cron.ParseStandard(spec)
+	expectedNextTime := schedule.Next(now)
+	result, err := server.SendPeriodicTask("0 * * * *", task)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedNextTime.Unix(), result.Signature.ETA.Unix())
+
+	expectedNextTime = schedule.Next(twoHours)
+	twoHours = twoHours.UTC()
+	task = &tasks.Signature{
+		Name: "test",
+		Args: []tasks.Arg{
+			{
+				Type:  "string",
+				Value: "xxx",
+			},
+		},
+		ETA: &twoHours,
+	}
+	result, err = server.SendPeriodicTask("0 * * * *", task)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedNextTime.Unix(), result.Signature.ETA.Unix())
 }

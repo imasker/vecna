@@ -361,7 +361,14 @@ func (s *Server) SendPeriodicTask(spec string, signature *tasks.Signature) (*res
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := signature.ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.Unix() < now.Unix() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(signature.Code, signature.Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -389,7 +396,14 @@ func (s *Server) SendPeriodicChain(spec string, chain *tasks.Chain) (*result.Cha
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := chain.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.Unix() < now.Unix() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(chain.Tasks[0].Code, chain.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -419,7 +433,14 @@ func (s *Server) SendPeriodicGroup(spec string, group *tasks.Group, sendConcurre
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := group.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.Unix() < now.Unix() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(group.Tasks[0].Code, group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -451,7 +472,14 @@ func (s *Server) SendPeriodicChord(spec string, chord *tasks.Chord, sendConcurre
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := chord.Group.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.Unix() < now.Unix() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(chord.Group.Tasks[0].Code, chord.Group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
