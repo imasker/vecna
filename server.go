@@ -566,6 +566,7 @@ func (s *Server) CancelDelayedChord(chord *tasks.Chord) error {
 func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 	var signatures []*tasks.Signature
 	var signatureIDs []string
+	var lockName string
 	if taskType == "" {
 		if strings.HasPrefix(code, "group_") {
 			taskType = "group"
@@ -583,6 +584,7 @@ func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 		}
 		signatureIDs = append(signatureIDs, signature.ID)
 		signatures = append(signatures, signature)
+		lockName = utils.GetLockName(signature.Code, signature.Spec)
 	} else if taskType == "group" {
 		// group
 		group, err := s.GetBroker().GetPeriodicGroup(code, false)
@@ -593,6 +595,7 @@ func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 			signatureIDs = append(signatureIDs, signature.ID)
 			signatures = append(signatures, signature)
 		}
+		lockName = utils.GetLockName(group.Tasks[0].Code, group.Tasks[0].Spec)
 	} else if strings.HasPrefix(code, "chord_") {
 		// chord
 		chord, err := s.GetBroker().GetPeriodicChord(code, false)
@@ -603,6 +606,7 @@ func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 			signatureIDs = append(signatureIDs, signature.ID)
 			signatures = append(signatures, signature)
 		}
+		lockName = utils.GetLockName(chord.Group.Tasks[0].Code, chord.Group.Tasks[0].Spec)
 	} else {
 		return errors.New("no such task type")
 	}
@@ -612,6 +616,11 @@ func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 		return err
 	}
 	err = s.broker.RemovePeriodicTask(code)
+	if err != nil {
+		return err
+	}
+	// unlock
+	err = s.lock.Unlock(lockName)
 	if err != nil {
 		return err
 	}

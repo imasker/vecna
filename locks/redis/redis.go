@@ -97,3 +97,9 @@ func (l Lock) Lock(key string, unixTsToExpireNs int64) error {
 
 	return nil
 }
+
+func (l Lock) Unlock(key string) error {
+	ctx := l.client.Context()
+	_, err := l.client.Del(ctx, key).Result()
+	return err
+}

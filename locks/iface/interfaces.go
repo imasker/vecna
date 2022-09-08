@@ -10,4 +10,8 @@ type Lock interface {
 	// key: the name of the lock,
 	// value: at the nanosecond timestamp that lock needs to be released automatically
 	Lock(key string, value int64) error
+
+	// Unlock Release the lock
+	// key: the name of the lock
+	Unlock(key string) error
 }
