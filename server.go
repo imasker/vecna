@@ -560,18 +560,27 @@ func (s *Server) CancelDelayedChord(chord *tasks.Chord) error {
 }
 
 // CancelPeriodicTask cancels periodic task by it's code before next scheduled time
-func (s *Server) CancelPeriodicTask(code string) error {
+func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 	var signatures []*tasks.Signature
 	var signatureIDs []string
-	if strings.HasPrefix(code, "task_") {
-		// single task
+	if taskType == "" {
+		if strings.HasPrefix(code, "group_") {
+			taskType = "group"
+		} else if strings.HasPrefix(code, "chord_") {
+			taskType = "chord"
+		} else {
+			taskType = "task"
+		}
+	}
+	if taskType == "task" {
+		// default single task
 		signature, err := s.GetBroker().GetPeriodicTask(code, false)
 		if err != nil {
 			return err
 		}
 		signatureIDs = append(signatureIDs, signature.ID)
 		signatures = append(signatures, signature)
-	} else if strings.HasPrefix(code, "group_") {
+	} else if taskType == "group" {
 		// group
 		group, err := s.GetBroker().GetPeriodicGroup(code, false)
 		if err != nil {
@@ -592,7 +601,7 @@ func (s *Server) CancelPeriodicTask(code string) error {
 			signatures = append(signatures, signature)
 		}
 	} else {
-		return nil
+		return errors.New("no such task type")
 	}
 	// remove from redis
 	err := s.broker.RemoveDelayedTasks(signatureIDs...)
