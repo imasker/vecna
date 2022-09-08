@@ -163,3 +163,13 @@ func TestServer_SendPeriodicTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedNextTime.Unix(), result.Signature.ETA.Unix())
 }
+
+func TestServer_CronNextTime(t *testing.T) {
+	spec := "* * * * *"
+	schedule, _ := cron.ParseStandard(spec)
+	for i := 0; i < 100000; i++ {
+		now := time.Now()
+		expectedNextTime := schedule.Next(now)
+		assert.Greater(t, expectedNextTime.UnixNano(), now.UnixNano())
+	}
+}

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/imasker/vecna/log"
+
 	backendsiface "github.com/imasker/vecna/backends/iface"
 	"github.com/imasker/vecna/backends/result"
 	brokersiface "github.com/imasker/vecna/brokers/iface"
@@ -377,6 +379,7 @@ func (s *Server) SendPeriodicTask(spec string, signature *tasks.Signature) (*res
 	// send task
 	eta := nextCallTime.UTC()
 	signature.ETA = &eta
+	log.Logger.Debug("next")
 	return s.SendTask(signature)
 }
 
@@ -400,7 +403,7 @@ func (s *Server) SendPeriodicChain(spec string, chain *tasks.Chain) (*result.Cha
 	now := time.Now()
 	if startTime == nil {
 		startTime = &now
-	} else if startTime.Unix() < now.Unix() {
+	} else if startTime.UnixNano() < now.UnixNano() {
 		startTime = &now
 	}
 	nextCallTime := schedule.Next(*startTime)
@@ -437,7 +440,7 @@ func (s *Server) SendPeriodicGroup(spec string, group *tasks.Group, sendConcurre
 	now := time.Now()
 	if startTime == nil {
 		startTime = &now
-	} else if startTime.Unix() < now.Unix() {
+	} else if startTime.UnixNano() < now.UnixNano() {
 		startTime = &now
 	}
 	nextCallTime := schedule.Next(*startTime)
@@ -476,7 +479,7 @@ func (s *Server) SendPeriodicChord(spec string, chord *tasks.Chord, sendConcurre
 	now := time.Now()
 	if startTime == nil {
 		startTime = &now
-	} else if startTime.Unix() < now.Unix() {
+	} else if startTime.UnixNano() < now.UnixNano() {
 		startTime = &now
 	}
 	nextCallTime := schedule.Next(*startTime)
