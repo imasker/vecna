@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/imasker/vecna/log"
+
 	backendsiface "github.com/imasker/vecna/backends/iface"
 	"github.com/imasker/vecna/backends/result"
 	brokersiface "github.com/imasker/vecna/brokers/iface"
@@ -361,7 +363,14 @@ func (s *Server) SendPeriodicTask(spec string, signature *tasks.Signature) (*res
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := signature.ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.Unix() < now.Unix() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(signature.Code, signature.Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -370,6 +379,7 @@ func (s *Server) SendPeriodicTask(spec string, signature *tasks.Signature) (*res
 	// send task
 	eta := nextCallTime.UTC()
 	signature.ETA = &eta
+	log.Logger.Debug("next")
 	return s.SendTask(signature)
 }
 
@@ -389,7 +399,14 @@ func (s *Server) SendPeriodicChain(spec string, chain *tasks.Chain) (*result.Cha
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := chain.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.UnixNano() < now.UnixNano() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(chain.Tasks[0].Code, chain.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -419,7 +436,14 @@ func (s *Server) SendPeriodicGroup(spec string, group *tasks.Group, sendConcurre
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := group.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.UnixNano() < now.UnixNano() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(group.Tasks[0].Code, group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -451,7 +475,14 @@ func (s *Server) SendPeriodicChord(spec string, chord *tasks.Chord, sendConcurre
 	}
 
 	// get lock
-	nextCallTime := schedule.Next(time.Now())
+	startTime := chord.Group.Tasks[0].ETA
+	now := time.Now()
+	if startTime == nil {
+		startTime = &now
+	} else if startTime.UnixNano() < now.UnixNano() {
+		startTime = &now
+	}
+	nextCallTime := schedule.Next(*startTime)
 	err = s.lock.LockWithRetries(utils.GetLockName(chord.Group.Tasks[0].Code, chord.Group.Tasks[0].Spec), nextCallTime.UnixNano()-1)
 	if err != nil {
 		return nil, err
@@ -532,18 +563,29 @@ func (s *Server) CancelDelayedChord(chord *tasks.Chord) error {
 }
 
 // CancelPeriodicTask cancels periodic task by it's code before next scheduled time
-func (s *Server) CancelPeriodicTask(code string) error {
+func (s *Server) CancelPeriodicTask(code string, taskType string) error {
 	var signatures []*tasks.Signature
 	var signatureIDs []string
-	if strings.HasPrefix(code, "task_") {
-		// single task
+	var lockName string
+	if taskType == "" {
+		if strings.HasPrefix(code, "group_") {
+			taskType = "group"
+		} else if strings.HasPrefix(code, "chord_") {
+			taskType = "chord"
+		} else {
+			taskType = "task"
+		}
+	}
+	if taskType == "task" {
+		// default single task
 		signature, err := s.GetBroker().GetPeriodicTask(code, false)
 		if err != nil {
 			return err
 		}
 		signatureIDs = append(signatureIDs, signature.ID)
 		signatures = append(signatures, signature)
-	} else if strings.HasPrefix(code, "group_") {
+		lockName = utils.GetLockName(signature.Code, signature.Spec)
+	} else if taskType == "group" {
 		// group
 		group, err := s.GetBroker().GetPeriodicGroup(code, false)
 		if err != nil {
@@ -553,6 +595,7 @@ func (s *Server) CancelPeriodicTask(code string) error {
 			signatureIDs = append(signatureIDs, signature.ID)
 			signatures = append(signatures, signature)
 		}
+		lockName = utils.GetLockName(group.Tasks[0].Code, group.Tasks[0].Spec)
 	} else if strings.HasPrefix(code, "chord_") {
 		// chord
 		chord, err := s.GetBroker().GetPeriodicChord(code, false)
@@ -563,8 +606,9 @@ func (s *Server) CancelPeriodicTask(code string) error {
 			signatureIDs = append(signatureIDs, signature.ID)
 			signatures = append(signatures, signature)
 		}
+		lockName = utils.GetLockName(chord.Group.Tasks[0].Code, chord.Group.Tasks[0].Spec)
 	} else {
-		return nil
+		return errors.New("no such task type")
 	}
 	// remove from redis
 	err := s.broker.RemoveDelayedTasks(signatureIDs...)
@@ -572,6 +616,11 @@ func (s *Server) CancelPeriodicTask(code string) error {
 		return err
 	}
 	err = s.broker.RemovePeriodicTask(code)
+	if err != nil {
+		return err
+	}
+	// unlock
+	err = s.lock.Unlock(lockName)
 	if err != nil {
 		return err
 	}

@@ -1036,8 +1036,8 @@ import (
   "github.com/imasker/vecna"
 )
 
-// use the code you have saved
-err := server.CancelPeriodicTask(code)
+// use the code you have saved and the taskType if you used a user-defined taskID
+err := server.CancelPeriodicTask(code, "")
 if err != nil {
   // failed to cancel periodic task
 }
